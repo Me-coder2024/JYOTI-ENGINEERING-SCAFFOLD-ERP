@@ -1,0 +1,2 @@
+'use client';
+export default function ManufacturingError({retry}:{error:Error & {digest?:string};retry:()=>void}){return <main style={{padding:40,maxWidth:650,margin:'70px auto'}}><h1>Manufacturing is temporarily unavailable</h1><p style={{margin:'20px 0'}}>Check your connection and try again. If you were posting an entry, review its history before submitting a new entry.</p><button className="primary" onClick={retry}>Try again</button> <a href="/manufacturing">Reload workspace</a></main>;}

@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import type {User} from '../../src/shared/access';
+export async function extendedTests(owner:User,customerId:string,invoiceId:string){
+ const {pool}=await import('../../src/lib/db'),s=await import('../../src/manufacturing/service'),p=await import('../../src/manufacturing/production'),a=await import('../../src/manufacturing/accounting');
+ const supplier=await s.saveMaster(owner,'suppliers',{name:'Production supplier'}),raw=await s.saveMaster(owner,'raw',{name:'Production tube',unit:'kg'}),bolt=await s.saveMaster(owner,'raw',{name:'Production bolt',unit:'pc'}),fg=await s.saveMaster(owner,'finished',{name:'Produced jack',sale_rate:350});
+ const po=await s.saveOrder(owner,'purchase',{party_id:supplier.id,date:'2026-06-01',lines:[{item_id:raw.id,quantity:100,rate:10},{item_id:bolt.id,quantity:20,rate:2}]});await s.transitionOrder(owner,'purchase',po.id,'activate');await s.postMovement(owner,'purchase',{id:randomUUID(),order_id:po.id,date:'2026-06-02',lines:[{item_id:raw.id,quantity:100},{item_id:bolt.id,quantity:20}]});
+ const bom=await p.saveBom(owner,{finished_good_id:fg.id,lines:[{item_id:raw.id,quantity:2},{item_id:bolt.id,quantity:1}]});const order=await p.saveWorkOrder(owner,{id:randomUUID(),bom_id:bom.id,date:'2026-06-01',quantity:10});await p.transitionWorkOrder(owner,{id:order.id,action:'release'});
+ await p.saveBom(owner,{finished_good_id:fg.id,lines:[{item_id:raw.id,quantity:3},{item_id:bolt.id,quantity:1}]});
+ const entry={id:randomUUID(),work_order_id:order.id,date:'2026-06-03',quantity:4,labour_cost:100,notes:'Batch QC checked',wastage:[{item_id:raw.id,quantity:0.5}]};
+ await assert.rejects(()=>p.postProduction(owner,{...entry,date:'2026-06-01'}),/insufficient raw stock/);
+ await p.postProduction(owner,entry);await p.postProduction(owner,entry);
+ assert.equal((await pool.query('SELECT current_stock_qty FROM mfg_raw_materials WHERE id=$1',[raw.id])).rows[0].current_stock_qty,'91.500');
+ assert.equal((await pool.query('SELECT current_stock_qty FROM mfg_finished_goods WHERE id=$1',[fg.id])).rows[0].current_stock_qty,'4.000');
+ await assert.rejects(()=>p.postProduction(owner,{...entry,quantity:5}),/different production/);
+ await assert.rejects(()=>p.postProduction(owner,{...entry,id:randomUUID(),quantity:1,wastage:[{item_id:bolt.id,quantity:100}]}),/insufficient/);
+ assert.equal((await pool.query('SELECT current_stock_qty FROM mfg_raw_materials WHERE id=$1',[raw.id])).rows[0].current_stock_qty,'91.500','All consumption rolls back if second material is short');
+ const concurrent=await Promise.allSettled([1,2].map(()=>p.postProduction(owner,{...entry,id:randomUUID(),quantity:6,wastage:[]})));assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);
+ assert.equal((await pool.query('SELECT status FROM mfg_work_orders WHERE id=$1',[order.id])).rows[0].status,'COMPLETED');
+ await assert.rejects(()=>pool.query('DELETE FROM mfg_production_entries WHERE id=$1',[entry.id]),/immutable/);
+ await a.saveAccountingSettings(owner,{company_name:'Manufacturing test books',financial_year_start:'2026-04-01',closed_through:''});
+ const ledger=async(name:string,group_name:string,extra={})=>a.saveLedger(owner,{name,group_name,party_details:{},...extra});
+ const bank=await ledger('Test Bank','Bank Accounts'),capital=await ledger('Capital','Capital Account'),expense=await ledger('Office expense','Indirect Expenses'),debtor=await ledger('Customer account','Sundry Debtors',{customer_id:customerId}),sales=await ledger('Sales','Sales Accounts'),tax=await ledger('Output GST','Duties & Taxes');
+ const line=(ledger_id:string,debit:number,credit:number)=>({ledger_id,debit,credit});
+ const opening={id:randomUUID(),type:'Journal',date:'2026-06-01',narration:'Opening capital',lines:[line(bank.id,10000,0),line(capital.id,0,10000)]};await a.postVoucher(owner,opening);await a.postVoucher(owner,opening);
+ await assert.rejects(()=>a.postVoucher(owner,{...opening,id:randomUUID(),lines:[line(bank.id,10000,0),line(capital.id,0,9000)]}),/debits must equal/);
+ const payment={id:randomUUID(),type:'Payment',date:'2026-06-03',narration:'Office payment',lines:[line(expense.id,100,0),line(bank.id,0,100)]};await a.postVoucher(owner,payment);
+ await assert.rejects(()=>a.postVoucher(owner,{...payment,id:randomUUID(),lines:[line(bank.id,100,0),line(expense.id,0,100)]}),/Payment must credit/);
+ const invoice=(await pool.query('SELECT * FROM mfg_sales_invoices WHERE id=$1',[invoiceId])).rows[0];const sale={id:randomUUID(),type:'Sales',date:invoice.date,narration:'Invoice posted to books',source_invoice_id:invoiceId,lines:[line(debtor.id,Number(invoice.grand_total),0),line(sales.id,0,Number(invoice.subtotal)),line(tax.id,0,Number(invoice.gst_amount))]};await a.postVoucher(owner,sale);
+ await assert.rejects(()=>a.postVoucher(owner,{...sale,id:randomUUID()}),/unique|duplicate/);
+ await a.postVoucher(owner,{id:randomUUID(),type:'Receipt',date:'2026-06-04',narration:'Customer received',lines:[line(bank.id,1000,0),line(debtor.id,0,1000)]});
+ const reverse={id:randomUUID(),type:'Journal',date:'2026-06-04',narration:'Reverse wrong expense',reverses_id:payment.id,lines:[line(expense.id,0,100),line(bank.id,100,0)]};await a.postVoucher(owner,reverse);await assert.rejects(()=>a.postVoucher(owner,{...reverse,id:randomUUID()}),/unique|duplicate/);
+ await assert.rejects(()=>pool.query('DELETE FROM mfg_vouchers WHERE id=$1',[opening.id]),/immutable/);
+ const state=await a.accountingState(),{financialReports}=await import('../../src/manufacturing/financial-reports');const report=financialReports(state.ledgers,state.vouchers,'2026-04-01','2026-06-30');assert.equal(report.profit,invoice.subtotal);assert.equal(report.assets,report.liabilities);
+ await a.saveAccountingSettings(owner,{company_name:'Manufacturing test books',financial_year_start:'2026-04-01',closed_through:'2026-06-04'});await assert.rejects(()=>a.postVoucher(owner,{...payment,id:randomUUID()}),/open accounting period/);
+ console.log('PASS: versioned BOM snapshots, partial/concurrent production, dated stock checks, consumption rollback, immutable production; balanced vouchers, payment direction, invoice linkage, duplicate prevention, reversal, financial reports and closed periods.');
+}

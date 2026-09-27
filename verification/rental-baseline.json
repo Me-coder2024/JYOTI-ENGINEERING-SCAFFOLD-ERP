@@ -1,0 +1,30 @@
+{
+  "recorded_at": "2026-09-20T10:23:15.268Z",
+  "files": {
+    "src/app/api/[...path]/route.ts": "b2a1ddcce2d739d7f8ce3c864b2fc524619c095ebba087883112374ae8724ea1",
+    "src/app/globals.css": "6b2180523b0d805d6a2c806ae81fa3382d4126c20ea05ab3a682321f0f440031",
+    "src/app/layout.tsx": "c14f6ea2a39282783adbdf1f4714de0765630cec279f0d327984e18c9f45283e",
+    "src/app/page.tsx": "3fb03dd8bc7809f04111c10684dceeef14067bbce13b2a7f26e3f0f1ea3d9d77",
+    "src/components/movement-form.tsx": "2e3a31fe43b487451e69a744236d356139f4ed562fdf8412f6e7b76a293a6b2f",
+    "src/components/rental-app.tsx": "0501c80c5bab0e0d4395cf4e999604da60da9763d11b7c6e27bbe1168ec8c4e0",
+    "src/lib/auth.ts": "719f2ec4d121a132ae6054911e63bf76b98f44f6ebc4967d4dc326014fbd48e3",
+    "src/lib/db.ts": "38e808ee562791550354b0a1de710fae5f96ee0c70087bea367e53b5e6aa786c",
+    "src/lib/documents.ts": "bed06dfbfad7bc7930356c813f3fa379940c8d32e4035a75f5d92820380c7205",
+    "src/lib/engine.ts": "702cd25fd14c03a540a558d3efc773ad63c19c212632285cff9d25de4cedea38",
+    "src/lib/service.ts": "08314b43104fdfeef6cf9fe09b136a298428a117b550e0b9159f9ac3a9a56f1c",
+    "db/001_initial.sql": "eda3bcb0ec6cb4cfe5e8cc008cb5fc510d3adf2e8c8e093b4c3df162838d5e66",
+    "db/002_dispatch_rates.sql": "6e36913ce803d309da6701bc2d2b4491200f4cc4197c6f87f956e7cb2b8e24e7",
+    "db/003_dispatch_periods.sql": "7c2e76bba6a535f62edbda5f34921bd49bd1f4bb7762f9ca289900781c2bb187",
+    "tests/dispatch-rates.test.ts": "195d5f87f20cfe6f27b9056d59f415afe52f6f01a97c4ac6227b7f983a24b61d",
+    "tests/engine.test.ts": "16fa0074b66c3d483f3bf88888ee0b4c581521cc499016aa440f8553cb2ef05b",
+    "tests/integration.ts": "0017bf51b8b47a5edd8600be0b24fbf164d3c98af4d4405e87c2e718f6dd2811",
+    "scripts/local-postgres.ts": "d28c866ba1ec35c2a199712b33b87a8f28864c2ff7c974c8b3c4075db7f4dcb6",
+    "scripts/migrate.ts": "f0b392f559b4177dba709ac4641190cbfe9ce162879b9803818887ccbb79d268",
+    "scripts/seed.ts": "2163ab9c7fea1bcf732626969a4a793b0cca0148badb511a8aa71ed3c7e85ce4",
+    "next.config.ts": "e094704bc795a3c6cc3ac3831dd3cdf8fbd258e93a060ef660fc0ec871fd036d",
+    "package.json": "176fd0b17c1fb98876df5be2f1e585957e236bcf5d6d62d7866e2eda9ddcc4f5",
+    "package-lock.json": "721df50ab24f4d01b029bc72a486a1059b56e4b44672080f6dad4a0c5384d81f",
+    "tsconfig.json": "add8204f296d4320940b283585b315d89b9728b80bb8c0ded59f83198a403ff7",
+    "README.md": "ea715747270445461726d44e21edd5dfc389584587d3c1947922171c17129866"
+  }
+}

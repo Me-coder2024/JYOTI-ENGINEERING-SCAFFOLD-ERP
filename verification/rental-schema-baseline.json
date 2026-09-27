@@ -1,0 +1,1942 @@
+{
+  "columns": [
+    {
+      "table_name": "audit_log",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "nextval('audit_log_id_seq'::regclass)",
+      "is_nullable": "NO",
+      "data_type": "bigint",
+      "character_maximum_length": null,
+      "numeric_precision": 64,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "audit_log",
+      "column_name": "action",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_log",
+      "column_name": "entity_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_log",
+      "column_name": "details",
+      "ordinal_position": 4,
+      "column_default": "'{}'::jsonb",
+      "is_nullable": "NO",
+      "data_type": "jsonb",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "audit_log",
+      "column_name": "created_at",
+      "ordinal_position": 5,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "company",
+      "column_name": "name",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "unit1",
+      "ordinal_position": 3,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "unit2",
+      "ordinal_position": 4,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "mobile",
+      "ordinal_position": 5,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "email",
+      "ordinal_position": 6,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "website",
+      "ordinal_position": 7,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "gst_no",
+      "ordinal_position": 8,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "bank_name",
+      "ordinal_position": 9,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "bank_account",
+      "ordinal_position": 10,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "bank_ifsc",
+      "ordinal_position": 11,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "logo",
+      "ordinal_position": 12,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "company",
+      "column_name": "gst_percent",
+      "ordinal_position": 13,
+      "column_default": "18",
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 5,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "company",
+      "column_name": "terms",
+      "ordinal_position": 14,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "name",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "address",
+      "ordinal_position": 3,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "gst_no",
+      "ordinal_position": 4,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "state_code",
+      "ordinal_position": 5,
+      "column_default": "'24'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "contact_person",
+      "ordinal_position": 6,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "mobile",
+      "ordinal_position": 7,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "email",
+      "ordinal_position": 8,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "customers",
+      "column_name": "locking_days",
+      "ordinal_position": 9,
+      "column_default": "180",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "customers",
+      "column_name": "deposit",
+      "ordinal_position": 10,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 14,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "customers",
+      "column_name": "created_at",
+      "ordinal_position": 11,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "dispatch_lots",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "dispatch_lots",
+      "column_name": "customer_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "dispatch_lots",
+      "column_name": "item_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "dispatch_lots",
+      "column_name": "original_quantity",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "dispatch_lots",
+      "column_name": "dispatch_date",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "dispatch_lots",
+      "column_name": "lock_until",
+      "ordinal_position": 6,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "invoice_no",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "customer_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "period_start",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "period_end",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "status",
+      "ordinal_position": 6,
+      "column_default": "'DRAFT'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "gst_percent",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 5,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "snapshot",
+      "ordinal_position": 8,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "jsonb",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "rental_total",
+      "ordinal_position": 9,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 16,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "damage_total",
+      "ordinal_position": 10,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 16,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "subtotal",
+      "ordinal_position": 11,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 16,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "gst_amount",
+      "ordinal_position": 12,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 16,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "grand_total",
+      "ordinal_position": 13,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 16,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "notes",
+      "ordinal_position": 14,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "generated_at",
+      "ordinal_position": 15,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "invoices",
+      "column_name": "finalized_at",
+      "ordinal_position": 16,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "items",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "items",
+      "column_name": "name",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "items",
+      "column_name": "hsn",
+      "ordinal_position": 3,
+      "column_default": "'995457'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "items",
+      "column_name": "category",
+      "ordinal_position": 4,
+      "column_default": "'Scaffolding'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "items",
+      "column_name": "material_value",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 14,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "items",
+      "column_name": "weight",
+      "ordinal_position": 6,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 12,
+      "numeric_scale": 3
+    },
+    {
+      "table_name": "items",
+      "column_name": "active",
+      "ordinal_position": 7,
+      "column_default": "true",
+      "is_nullable": "NO",
+      "data_type": "boolean",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "customer_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "item_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "date",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "type",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "quantity",
+      "ordinal_position": 6,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "movements",
+      "column_name": "lock_until",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "damaged_quantity",
+      "ordinal_position": 8,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "movements",
+      "column_name": "damage_price",
+      "ordinal_position": 9,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 14,
+      "numeric_scale": 2
+    },
+    {
+      "table_name": "movements",
+      "column_name": "note",
+      "ordinal_position": 10,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "created_by",
+      "ordinal_position": 11,
+      "column_default": "'Office'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "created_at",
+      "ordinal_position": 12,
+      "column_default": "clock_timestamp()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "movements",
+      "column_name": "rental_rate",
+      "ordinal_position": 13,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 12,
+      "numeric_scale": 4
+    },
+    {
+      "table_name": "movements",
+      "column_name": "end_date",
+      "ordinal_position": 14,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "quotations",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "quotations",
+      "column_name": "customer_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "quotations",
+      "column_name": "date",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "quotations",
+      "column_name": "snapshot",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "jsonb",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "quotations",
+      "column_name": "created_at",
+      "ordinal_position": 5,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rates",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rates",
+      "column_name": "item_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rates",
+      "column_name": "effective_from",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rates",
+      "column_name": "rate",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 12,
+      "numeric_scale": 4
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "lot_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "customer_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "item_id",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "parent_id",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "trigger_return_id",
+      "ordinal_position": 6,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "start_date",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "expected_end_date",
+      "ordinal_position": 8,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "closed_on",
+      "ordinal_position": 9,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "opening_quantity",
+      "ordinal_position": 10,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "rental_rate",
+      "ordinal_position": 11,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 12,
+      "numeric_scale": 4
+    },
+    {
+      "table_name": "rental_periods",
+      "column_name": "lock_until",
+      "ordinal_position": 12,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "return_allocations",
+      "column_name": "return_id",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "return_allocations",
+      "column_name": "lot_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "return_allocations",
+      "column_name": "quantity",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "numeric_scale": 0
+    },
+    {
+      "table_name": "return_allocations",
+      "column_name": "return_date",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "return_allocations",
+      "column_name": "billing_date",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "date",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "schema_migrations",
+      "column_name": "name",
+      "ordinal_position": 1,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    },
+    {
+      "table_name": "schema_migrations",
+      "column_name": "applied_at",
+      "ordinal_position": 2,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "numeric_scale": null
+    }
+  ],
+  "constraints": [
+    {
+      "table_name": "audit_log",
+      "conname": "audit_log_action_not_null",
+      "definition": "NOT NULL action"
+    },
+    {
+      "table_name": "audit_log",
+      "conname": "audit_log_created_at_not_null",
+      "definition": "NOT NULL created_at"
+    },
+    {
+      "table_name": "audit_log",
+      "conname": "audit_log_details_not_null",
+      "definition": "NOT NULL details"
+    },
+    {
+      "table_name": "audit_log",
+      "conname": "audit_log_entity_id_not_null",
+      "definition": "NOT NULL entity_id"
+    },
+    {
+      "table_name": "audit_log",
+      "conname": "audit_log_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "audit_log",
+      "conname": "audit_log_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_bank_account_not_null",
+      "definition": "NOT NULL bank_account"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_bank_ifsc_not_null",
+      "definition": "NOT NULL bank_ifsc"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_bank_name_not_null",
+      "definition": "NOT NULL bank_name"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_email_not_null",
+      "definition": "NOT NULL email"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_gst_no_not_null",
+      "definition": "NOT NULL gst_no"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_gst_percent_check",
+      "definition": "CHECK (((gst_percent >= (0)::numeric) AND (gst_percent <= (100)::numeric)))"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_gst_percent_not_null",
+      "definition": "NOT NULL gst_percent"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_id_check",
+      "definition": "CHECK ((id = 1))"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_logo_not_null",
+      "definition": "NOT NULL logo"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_mobile_not_null",
+      "definition": "NOT NULL mobile"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_name_not_null",
+      "definition": "NOT NULL name"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_terms_not_null",
+      "definition": "NOT NULL terms"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_unit1_not_null",
+      "definition": "NOT NULL unit1"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_unit2_not_null",
+      "definition": "NOT NULL unit2"
+    },
+    {
+      "table_name": "company",
+      "conname": "company_website_not_null",
+      "definition": "NOT NULL website"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_address_not_null",
+      "definition": "NOT NULL address"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_contact_person_not_null",
+      "definition": "NOT NULL contact_person"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_created_at_not_null",
+      "definition": "NOT NULL created_at"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_deposit_check",
+      "definition": "CHECK ((deposit >= (0)::numeric))"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_deposit_not_null",
+      "definition": "NOT NULL deposit"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_email_not_null",
+      "definition": "NOT NULL email"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_gst_no_not_null",
+      "definition": "NOT NULL gst_no"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_locking_days_check",
+      "definition": "CHECK ((locking_days >= 0))"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_locking_days_not_null",
+      "definition": "NOT NULL locking_days"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_mobile_not_null",
+      "definition": "NOT NULL mobile"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_name_not_null",
+      "definition": "NOT NULL name"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "customers",
+      "conname": "customers_state_code_not_null",
+      "definition": "NOT NULL state_code"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_customer_id_fkey",
+      "definition": "FOREIGN KEY (customer_id) REFERENCES customers(id)"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_customer_id_not_null",
+      "definition": "NOT NULL customer_id"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_dispatch_date_not_null",
+      "definition": "NOT NULL dispatch_date"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_id_fkey",
+      "definition": "FOREIGN KEY (id) REFERENCES movements(id)"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_item_id_fkey",
+      "definition": "FOREIGN KEY (item_id) REFERENCES items(id)"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_item_id_not_null",
+      "definition": "NOT NULL item_id"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_lock_until_not_null",
+      "definition": "NOT NULL lock_until"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_original_quantity_check",
+      "definition": "CHECK ((original_quantity > 0))"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_original_quantity_not_null",
+      "definition": "NOT NULL original_quantity"
+    },
+    {
+      "table_name": "dispatch_lots",
+      "conname": "dispatch_lots_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_check",
+      "definition": "CHECK ((period_end >= period_start))"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_customer_id_fkey",
+      "definition": "FOREIGN KEY (customer_id) REFERENCES customers(id)"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_customer_id_not_null",
+      "definition": "NOT NULL customer_id"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_damage_total_not_null",
+      "definition": "NOT NULL damage_total"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_generated_at_not_null",
+      "definition": "NOT NULL generated_at"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_grand_total_not_null",
+      "definition": "NOT NULL grand_total"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_gst_amount_not_null",
+      "definition": "NOT NULL gst_amount"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_gst_percent_check",
+      "definition": "CHECK (((gst_percent >= (0)::numeric) AND (gst_percent <= (100)::numeric)))"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_gst_percent_not_null",
+      "definition": "NOT NULL gst_percent"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_invoice_no_key",
+      "definition": "UNIQUE (invoice_no)"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_invoice_no_not_null",
+      "definition": "NOT NULL invoice_no"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_notes_not_null",
+      "definition": "NOT NULL notes"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_period_end_not_null",
+      "definition": "NOT NULL period_end"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_period_start_not_null",
+      "definition": "NOT NULL period_start"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_rental_total_not_null",
+      "definition": "NOT NULL rental_total"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_snapshot_not_null",
+      "definition": "NOT NULL snapshot"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_status_check",
+      "definition": "CHECK ((status = ANY (ARRAY['DRAFT'::text, 'FINAL'::text])))"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_status_not_null",
+      "definition": "NOT NULL status"
+    },
+    {
+      "table_name": "invoices",
+      "conname": "invoices_subtotal_not_null",
+      "definition": "NOT NULL subtotal"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_active_not_null",
+      "definition": "NOT NULL active"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_category_not_null",
+      "definition": "NOT NULL category"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_hsn_not_null",
+      "definition": "NOT NULL hsn"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_material_value_check",
+      "definition": "CHECK ((material_value >= (0)::numeric))"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_material_value_not_null",
+      "definition": "NOT NULL material_value"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_name_key",
+      "definition": "UNIQUE (name)"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_name_not_null",
+      "definition": "NOT NULL name"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_weight_check",
+      "definition": "CHECK ((weight >= (0)::numeric))"
+    },
+    {
+      "table_name": "items",
+      "conname": "items_weight_not_null",
+      "definition": "NOT NULL weight"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_check",
+      "definition": "CHECK (((damaged_quantity >= 0) AND (damaged_quantity <= quantity)))"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_check1",
+      "definition": "CHECK (((type = 'RETURN'::text) OR (damaged_quantity = 0)))"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_check2",
+      "definition": "CHECK ((((type = 'DISPATCH'::text) AND (lock_until IS NOT NULL)) OR (type = 'RETURN'::text)))"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_check3",
+      "definition": "CHECK (((rental_rate IS NULL) OR ((type = 'DISPATCH'::text) AND (rental_rate >= (0)::numeric))))"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_check4",
+      "definition": "CHECK (((end_date IS NULL) OR ((type = 'DISPATCH'::text) AND (end_date >= date))))"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_created_at_not_null",
+      "definition": "NOT NULL created_at"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_created_by_not_null",
+      "definition": "NOT NULL created_by"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_customer_id_fkey",
+      "definition": "FOREIGN KEY (customer_id) REFERENCES customers(id)"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_customer_id_not_null",
+      "definition": "NOT NULL customer_id"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_damage_price_check",
+      "definition": "CHECK ((damage_price >= (0)::numeric))"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_damage_price_not_null",
+      "definition": "NOT NULL damage_price"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_damaged_quantity_not_null",
+      "definition": "NOT NULL damaged_quantity"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_date_not_null",
+      "definition": "NOT NULL date"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_item_id_fkey",
+      "definition": "FOREIGN KEY (item_id) REFERENCES items(id)"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_item_id_not_null",
+      "definition": "NOT NULL item_id"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_note_not_null",
+      "definition": "NOT NULL note"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_quantity_check",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_quantity_not_null",
+      "definition": "NOT NULL quantity"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_type_check",
+      "definition": "CHECK ((type = ANY (ARRAY['DISPATCH'::text, 'RETURN'::text])))"
+    },
+    {
+      "table_name": "movements",
+      "conname": "movements_type_not_null",
+      "definition": "NOT NULL type"
+    },
+    {
+      "table_name": "quotations",
+      "conname": "quotations_created_at_not_null",
+      "definition": "NOT NULL created_at"
+    },
+    {
+      "table_name": "quotations",
+      "conname": "quotations_customer_id_fkey",
+      "definition": "FOREIGN KEY (customer_id) REFERENCES customers(id)"
+    },
+    {
+      "table_name": "quotations",
+      "conname": "quotations_customer_id_not_null",
+      "definition": "NOT NULL customer_id"
+    },
+    {
+      "table_name": "quotations",
+      "conname": "quotations_date_not_null",
+      "definition": "NOT NULL date"
+    },
+    {
+      "table_name": "quotations",
+      "conname": "quotations_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "quotations",
+      "conname": "quotations_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "quotations",
+      "conname": "quotations_snapshot_not_null",
+      "definition": "NOT NULL snapshot"
+    },
+    {
+      "table_name": "rates",
+      "conname": "rates_effective_from_not_null",
+      "definition": "NOT NULL effective_from"
+    },
+    {
+      "table_name": "rates",
+      "conname": "rates_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "rates",
+      "conname": "rates_item_id_effective_from_key",
+      "definition": "UNIQUE (item_id, effective_from)"
+    },
+    {
+      "table_name": "rates",
+      "conname": "rates_item_id_fkey",
+      "definition": "FOREIGN KEY (item_id) REFERENCES items(id)"
+    },
+    {
+      "table_name": "rates",
+      "conname": "rates_item_id_not_null",
+      "definition": "NOT NULL item_id"
+    },
+    {
+      "table_name": "rates",
+      "conname": "rates_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "rates",
+      "conname": "rates_rate_check",
+      "definition": "CHECK ((rate >= (0)::numeric))"
+    },
+    {
+      "table_name": "rates",
+      "conname": "rates_rate_not_null",
+      "definition": "NOT NULL rate"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_check",
+      "definition": "CHECK (((closed_on IS NULL) OR (closed_on >= start_date)))"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_customer_id_fkey",
+      "definition": "FOREIGN KEY (customer_id) REFERENCES customers(id)"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_customer_id_not_null",
+      "definition": "NOT NULL customer_id"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_item_id_fkey",
+      "definition": "FOREIGN KEY (item_id) REFERENCES items(id)"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_item_id_not_null",
+      "definition": "NOT NULL item_id"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_lock_until_not_null",
+      "definition": "NOT NULL lock_until"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_lot_id_fkey",
+      "definition": "FOREIGN KEY (lot_id) REFERENCES dispatch_lots(id)"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_lot_id_not_null",
+      "definition": "NOT NULL lot_id"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_opening_quantity_check",
+      "definition": "CHECK ((opening_quantity > 0))"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_opening_quantity_not_null",
+      "definition": "NOT NULL opening_quantity"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_rental_rate_check",
+      "definition": "CHECK ((rental_rate >= (0)::numeric))"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_start_date_not_null",
+      "definition": "NOT NULL start_date"
+    },
+    {
+      "table_name": "rental_periods",
+      "conname": "rental_periods_trigger_return_id_fkey",
+      "definition": "FOREIGN KEY (trigger_return_id) REFERENCES movements(id)"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_billing_date_not_null",
+      "definition": "NOT NULL billing_date"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_lot_id_fkey",
+      "definition": "FOREIGN KEY (lot_id) REFERENCES dispatch_lots(id)"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_lot_id_not_null",
+      "definition": "NOT NULL lot_id"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_pkey",
+      "definition": "PRIMARY KEY (return_id, lot_id)"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_quantity_check",
+      "definition": "CHECK ((quantity > 0))"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_quantity_not_null",
+      "definition": "NOT NULL quantity"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_return_date_not_null",
+      "definition": "NOT NULL return_date"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_return_id_fkey",
+      "definition": "FOREIGN KEY (return_id) REFERENCES movements(id)"
+    },
+    {
+      "table_name": "return_allocations",
+      "conname": "return_allocations_return_id_not_null",
+      "definition": "NOT NULL return_id"
+    },
+    {
+      "table_name": "schema_migrations",
+      "conname": "schema_migrations_applied_at_not_null",
+      "definition": "NOT NULL applied_at"
+    },
+    {
+      "table_name": "schema_migrations",
+      "conname": "schema_migrations_name_not_null",
+      "definition": "NOT NULL name"
+    },
+    {
+      "table_name": "schema_migrations",
+      "conname": "schema_migrations_pkey",
+      "definition": "PRIMARY KEY (name)"
+    }
+  ],
+  "indexes": [
+    {
+      "tablename": "audit_log",
+      "indexname": "audit_log_pkey",
+      "indexdef": "CREATE UNIQUE INDEX audit_log_pkey ON public.audit_log USING btree (id)"
+    },
+    {
+      "tablename": "company",
+      "indexname": "company_pkey",
+      "indexdef": "CREATE UNIQUE INDEX company_pkey ON public.company USING btree (id)"
+    },
+    {
+      "tablename": "customers",
+      "indexname": "customers_pkey",
+      "indexdef": "CREATE UNIQUE INDEX customers_pkey ON public.customers USING btree (id)"
+    },
+    {
+      "tablename": "dispatch_lots",
+      "indexname": "dispatch_lots_pkey",
+      "indexdef": "CREATE UNIQUE INDEX dispatch_lots_pkey ON public.dispatch_lots USING btree (id)"
+    },
+    {
+      "tablename": "invoices",
+      "indexname": "invoices_invoice_no_key",
+      "indexdef": "CREATE UNIQUE INDEX invoices_invoice_no_key ON public.invoices USING btree (invoice_no)"
+    },
+    {
+      "tablename": "invoices",
+      "indexname": "invoices_period",
+      "indexdef": "CREATE INDEX invoices_period ON public.invoices USING btree (customer_id, period_start, period_end)"
+    },
+    {
+      "tablename": "invoices",
+      "indexname": "invoices_pkey",
+      "indexdef": "CREATE UNIQUE INDEX invoices_pkey ON public.invoices USING btree (id)"
+    },
+    {
+      "tablename": "items",
+      "indexname": "items_name_key",
+      "indexdef": "CREATE UNIQUE INDEX items_name_key ON public.items USING btree (name)"
+    },
+    {
+      "tablename": "items",
+      "indexname": "items_pkey",
+      "indexdef": "CREATE UNIQUE INDEX items_pkey ON public.items USING btree (id)"
+    },
+    {
+      "tablename": "movements",
+      "indexname": "movements_pkey",
+      "indexdef": "CREATE UNIQUE INDEX movements_pkey ON public.movements USING btree (id)"
+    },
+    {
+      "tablename": "movements",
+      "indexname": "movements_timeline",
+      "indexdef": "CREATE INDEX movements_timeline ON public.movements USING btree (customer_id, item_id, date, created_at)"
+    },
+    {
+      "tablename": "quotations",
+      "indexname": "quotations_pkey",
+      "indexdef": "CREATE UNIQUE INDEX quotations_pkey ON public.quotations USING btree (id)"
+    },
+    {
+      "tablename": "rates",
+      "indexname": "rates_item_id_effective_from_key",
+      "indexdef": "CREATE UNIQUE INDEX rates_item_id_effective_from_key ON public.rates USING btree (item_id, effective_from)"
+    },
+    {
+      "tablename": "rates",
+      "indexname": "rates_pkey",
+      "indexdef": "CREATE UNIQUE INDEX rates_pkey ON public.rates USING btree (id)"
+    },
+    {
+      "tablename": "rental_periods",
+      "indexname": "rental_periods_customer",
+      "indexdef": "CREATE INDEX rental_periods_customer ON public.rental_periods USING btree (customer_id, item_id, start_date)"
+    },
+    {
+      "tablename": "rental_periods",
+      "indexname": "rental_periods_pkey",
+      "indexdef": "CREATE UNIQUE INDEX rental_periods_pkey ON public.rental_periods USING btree (id)"
+    },
+    {
+      "tablename": "return_allocations",
+      "indexname": "return_allocations_pkey",
+      "indexdef": "CREATE UNIQUE INDEX return_allocations_pkey ON public.return_allocations USING btree (return_id, lot_id)"
+    },
+    {
+      "tablename": "schema_migrations",
+      "indexname": "schema_migrations_pkey",
+      "indexdef": "CREATE UNIQUE INDEX schema_migrations_pkey ON public.schema_migrations USING btree (name)"
+    }
+  ],
+  "triggers": [
+    {
+      "relname": "invoices",
+      "tgname": "invoice_immutable",
+      "definition": "CREATE TRIGGER invoice_immutable BEFORE DELETE OR UPDATE ON public.invoices FOR EACH ROW EXECUTE FUNCTION protect_final_invoice()"
+    }
+  ],
+  "functions": [
+    {
+      "proname": "protect_final_invoice",
+      "definition": "CREATE OR REPLACE FUNCTION public.protect_final_invoice()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n IF OLD.status='FINAL' THEN RAISE EXCEPTION 'Final invoices are immutable. Use a credit/debit note.'; END IF;\n IF TG_OP='DELETE' THEN RETURN OLD; END IF;\n RETURN NEW;\nEND $function$\n"
+    }
+  ]
+}

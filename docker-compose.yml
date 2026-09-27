@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jyoti
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jyoti_local_only}
+      POSTGRES_DB: jyoti_rental
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - rental_data:/var/lib/postgresql/data
+volumes:
+  rental_data:

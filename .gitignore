@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.env
+.postgres/
+*.tsbuildinfo
+test-results/
+.env.*
+!.env.example
+**/*.env
+!**/*.env.example
+*.pem
+*.crt
+tmp/
+deploy/backups/

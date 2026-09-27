@@ -1,0 +1,12 @@
+node_modules
+.next
+.postgres
+.env
+.env.*
+**/*.env
+**/*.pem
+deploy/backups
+test-results
+verification
+*.tsbuildinfo
+.git
