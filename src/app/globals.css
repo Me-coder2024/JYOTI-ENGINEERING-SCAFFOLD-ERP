@@ -7,3 +7,14 @@
 @media print{.sidebar,.topbar,.heading-actions,.page-footer,.form-footer,.overlay>section>header button{display:none!important}.main{margin-left:0}.content{padding:0}.overlay{position:static;background:none;padding:0}.modal{max-height:none;width:100%;box-shadow:none}body{background:white}.panel{break-inside:avoid}}
 
 .dispatch-line-card{border-bottom:1px solid var(--line);margin-bottom:16px;padding-bottom:12px}.dispatch-rate-note{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:var(--muted);padding:0 2px 6px}.dispatch-line-card .movement-line{border:0;margin-bottom:10px}
+
+/* Material statement filters must wrap independently of export actions. */
+.panel.ledger-controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;padding:20px;overflow:visible}
+.ledger-controls>label{display:flex;flex-direction:column;gap:8px;flex:1 1 150px;min-width:0;color:var(--muted);font-size:12px;font-weight:600}
+.ledger-controls>label:first-child{flex:2 1 230px}
+.ledger-controls input,.ledger-controls select{display:block;width:100%;min-width:0;height:42px;padding:9px 12px;border:1px solid #dfe5e3;border-radius:7px;background:#fff;color:var(--ink)}
+.material-export-actions{display:flex;flex:0 0 auto;flex-wrap:wrap;gap:8px}
+.material-export-actions .secondary{white-space:nowrap;min-height:42px}
+.material-ledger-help{font-size:12px;color:var(--muted);margin:0 0 20px}
+.material-ledger-group th:nth-last-child(-n+3),.material-ledger-group td:nth-last-child(-n+3):not([colspan]){text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:600px){.panel.ledger-controls{padding:16px;gap:14px}.ledger-controls>label,.ledger-controls>label:first-child{flex:1 1 100%}.material-export-actions{width:100%}.material-export-actions .secondary{flex:1}}
