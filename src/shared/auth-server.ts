@@ -27,7 +27,7 @@ export async function login(input:unknown) {
 export async function logout(token?:string) {if(token)await pool.query('DELETE FROM erp_sessions WHERE token_hash=$1',[sessionHash(token)]);}
 export async function saveUser(actor:User,input:unknown) {
  if(!allowed(actor.role,'owner'))throw new AccessError('Owner access required.',403);
- const d=z.object({id:z.string().uuid().optional(),name:z.string().trim().min(1).max(100),login:z.string().trim().min(1).max(160).transform(s=>s.toLowerCase()),role:z.enum(['OWNER','RENTAL_STAFF','MANUFACTURING_STAFF']),is_active:z.boolean(),password:z.string().max(256).optional()}).parse(input);
+ const d=z.object({id:z.string().uuid().optional(),name:z.string().trim().min(1).max(100),login:z.string().trim().min(1).max(160).transform(s=>s.toLowerCase()),role:z.enum(['OWNER','RENTAL_STAFF']),is_active:z.boolean(),password:z.string().max(256).optional()}).parse(input);
  if((!d.id||d.password)&&(!d.password||d.password.length<8))throw new AccessError('Use a password with at least 8 characters.');
  if(d.id===actor.id&&(!d.is_active||d.role!=='OWNER'))throw new AccessError('You cannot disable or demote your own owner account.');
  const hash=d.password?await passwordHash(d.password):undefined;

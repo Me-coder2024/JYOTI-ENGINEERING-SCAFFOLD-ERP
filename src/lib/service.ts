@@ -1,3 +1,4 @@
+import {validGstin} from '@/rental/gst';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -8,9 +9,9 @@ const text = z.string().trim().max(10000);
 const date = z.string().refine(v => { try { day(v); return true; } catch { return false; } }, 'Enter a valid date');
 const amount = z.coerce.number().min(0).max(999999999);
 const uuid = z.string().uuid();
-const customerSchema = z.object({ id: uuid.optional(), name: text.min(1), address: text.default(''), gst_no: text.default(''), state_code: text.default('24'), contact_person: text.default(''), mobile: text.default(''), email: z.union([z.email(),z.literal('')]).default(''), locking_days: z.coerce.number().int().min(0).max(3650), deposit: amount.default(0) });
+const customerSchema = z.object({ id: uuid.optional(), name: text.min(1), address: text.default(''), gst_no: text.transform(v=>v.trim().toUpperCase()).refine(v=>!v||validGstin(v),'Enter a valid GSTIN including its check digit.').default(''), state_code: text.default('24'), contact_person: text.default(''), mobile: text.default(''), email: z.union([z.email(),z.literal('')]).default(''), locking_days: z.coerce.number().int().min(0).max(3650), deposit: amount.default(0) });
 const itemSchema = z.object({ id: uuid.optional(), name: text.min(1), hsn: text.default('995457'), category: text.default('Scaffolding'), material_value: amount, weight: amount.default(0), active: z.boolean().default(true), rate: amount.optional(), effective_from: date.optional() });
-const movementSchema = z.object({ customer_id: uuid, date, type: z.enum(['DISPATCH','RETURN']), note: text.default(''), lines: z.array(z.object({ item_id: uuid, quantity: z.coerce.number().int().positive().max(10000000), rental_rate: z.number().min(0).max(99999999).refine(v=>Math.abs(v*10000-Math.round(v*10000))<0.00001,'Use up to four decimal places.').optional(), damaged_quantity: z.coerce.number().int().min(0).default(0) })).min(1).max(100) });
+const movementSchema = z.object({ customer_id: uuid, date, type: z.enum(['DISPATCH','RETURN']), note: text.default(''), reference: text.max(80).default(''), lines: z.array(z.object({ item_id: uuid, quantity: z.coerce.number().int().positive().max(10000000), rental_rate: z.number().min(0).max(99999999).refine(v=>Math.abs(v*10000-Math.round(v*10000))<0.00001,'Use up to four decimal places.').optional(), damaged_quantity: z.coerce.number().int().min(0).default(0) })).min(1).max(100) });
 async function audit(db: PoolClient, action: string, id: string, details: unknown) { await db.query('INSERT INTO audit_log(action,entity_id,details) VALUES($1,$2,$3)',[action,id,JSON.stringify(details)]); }
 export async function state() {
  const results = await Promise.all([
@@ -27,6 +28,7 @@ export async function state() {
 }
 export async function saveCustomer(input: unknown) {
  const d = customerSchema.parse(input), id=d.id||randomUUID();
+ if(d.gst_no)d.state_code=d.gst_no.slice(0,2);
  return transaction(async db => { await db.query(`INSERT INTO customers(id,name,address,gst_no,state_code,contact_person,mobile,email,locking_days,deposit) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO UPDATE SET name=$2,address=$3,gst_no=$4,state_code=$5,contact_person=$6,mobile=$7,email=$8,locking_days=$9,deposit=$10`,[id,d.name,d.address,d.gst_no,d.state_code,d.contact_person,d.mobile,d.email,d.locking_days,d.deposit]); await audit(db,'CUSTOMER_SAVE',id,d); return {id}; });
 }
 export async function saveItem(input: unknown) {
@@ -75,7 +77,7 @@ export async function saveMovement(input: unknown, preview=false) {
      const deferred=built.allocations.filter(a=>a.return_id===id && a.billing_date>d.date);
      previews.push({item_id:item.id,name:item.name,before:balanceAt(old.physical,d.date),after:balanceAt(built.physical,d.date),lock_until:m.lock_until,rental_rate:rentalRate,deferred,damage_total:damageAmount(line.damaged_quantity,item.material_value)});
      if(preview) continue;
-     await db.query(`INSERT INTO movements(id,customer_id,item_id,date,type,quantity,lock_until,damaged_quantity,damage_price,note,rental_rate) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,[id,c.id,item.id,m.date,m.type,m.quantity,m.lock_until,line.damaged_quantity,item.material_value,d.note,rentalRate]);
+     await db.query(`INSERT INTO movements(id,customer_id,item_id,date,type,quantity,lock_until,damaged_quantity,damage_price,note,rental_rate,reference) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,[id,c.id,item.id,m.date,m.type,m.quantity,m.lock_until,line.damaged_quantity,item.material_value,d.note,rentalRate,d.reference]);
      if(m.type==='DISPATCH') await db.query('INSERT INTO dispatch_lots(id,customer_id,item_id,original_quantity,dispatch_date,lock_until) VALUES($1,$2,$3,$4,$5,$6)',[id,c.id,item.id,m.quantity,m.date,m.lock_until]);
      await db.query('DELETE FROM return_allocations WHERE return_id IN (SELECT id FROM movements WHERE customer_id=$1 AND item_id=$2)',[c.id,item.id]);
      for(const a of built.allocations) await db.query('INSERT INTO return_allocations(return_id,lot_id,quantity,return_date,billing_date) VALUES($1,$2,$3,$4,$5)',[a.return_id,a.lot_id,a.quantity,a.return_date,a.billing_date]);

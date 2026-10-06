@@ -22,6 +22,7 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
  const [date,setDate]=useState<string>(data.today);
  const [lines,setLines]=useState<EntryLine[]>([emptyLine()]);
  const [note,setNote]=useState('');
+ const [reference,setReference]=useState('');
  const [preview,setPreview]=useState<RecordData|null>(null);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(false);
@@ -29,7 +30,7 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
   const rate=data.rates.filter((r:RecordData)=>r.item_id===itemId&&r.effective_from<=onDate).at(-1)?.rate;
   return rate==null?'':String(Number(rate));
  }
- const payload={customer_id:customer,date,type:initial.type,note,lines:lines.map(l=>({
+ const payload={customer_id:customer,date,type:initial.type,note,reference,lines:lines.map(l=>({
   item_id:l.item_id,quantity:l.quantity,damaged_quantity:l.damaged_quantity,
   ...(!isReturn&&l.rental_rate!==''?{rental_rate:Number(l.rental_rate)}:{})
  }))};
@@ -54,7 +55,7 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
   setDate(value);
   if(!isReturn) setLines(current=>current.map(l=>l.custom_rate?l:{...l,rental_rate:standardRate(l.item_id,value)}));
  }
- return <form onSubmit={e=>{e.preventDefault();if(preview?.payloadKey===payloadKey&&!busy)onSave(payload);}}>
+ return <form onSubmit={e=>{e.preventDefault();if(preview?.payloadKey===payloadKey&&!busy)onSave(payload);}}><Field label="Delivery / return reference"><input maxLength={80} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Challan or receipt number"/></Field>
   <div className="form-grid">
    <Field label="Customer"><select required value={customer} onChange={e=>setCustomer(e.target.value)}><option value="">Select customer</option>{data.customers.map((c:RecordData)=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
    <Field label={isReturn?'Return date':'Dispatch / delivery date'}><input type="date" required max={data.today} value={date} onChange={e=>changeDate(e.target.value)}/></Field>

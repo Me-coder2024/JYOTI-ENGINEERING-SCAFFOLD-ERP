@@ -1,3 +1,4 @@
+import {materialExport} from '@/rental/material-export';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { authenticated, createSession, validPassword } from '@/lib/auth';
@@ -15,6 +16,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{path:string[
   if(path[0]==='invoices' && path[1]) {
    const invoice=(await pool.query('SELECT * FROM invoices WHERE id=$1',[path[1]])).rows[0];
    if(!invoice) return NextResponse.json({error:'Invoice not found.'},{status:404});
+   invoice.payments=(await pool.query("SELECT v.voucher_no,v.date,v.total FROM rental_acc_vouchers v WHERE v.details->>'receipt_invoice_id'=$1 AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id) ORDER BY v.date,v.created_at",[invoice.id])).rows;
    if(path[2]==='pdf') return new Response(new Uint8Array(await makePdf(invoice)),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${invoice.invoice_no.replaceAll('/','-')}.pdf"`}});
    return NextResponse.json(invoice);
   }
@@ -24,7 +26,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{path:string[
     return new Response(new Uint8Array(await makePdf(quote,true)),{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="quotation.pdf"'}});
   }
   if(path[0]==='export') {
-   const result=await makeExcel(path[1],req.nextUrl.searchParams.get('customer')||undefined);
+   const result=path[1]==='ledger'?(await materialExport(new URLSearchParams({customer:req.nextUrl.searchParams.get('customer')||'',start:req.nextUrl.searchParams.get('start')||'1900-01-01',end:req.nextUrl.searchParams.get('end')||new Date().toISOString().slice(0,10),format:'xlsx'}))).bytes:await makeExcel(path[1]);
    return new Response(new Uint8Array(result),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="jyoti-${path[1]}.xlsx"`}});
   }
   return NextResponse.json({error:'Not found.'},{status:404});
@@ -66,7 +68,9 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{path:string
  } catch(error) {
   console.error(error);
   const e=error as {code?:string;message?:string;issues?:{message:string;path:string[]}[]};
-  const message=e.code==='23505'?'This record or effective rate date already exists.':e.issues?e.issues.map(i=>`${i.path.join('.')}: ${i.message}`).join('; '):e.message||'Unable to save. Try again.';
+  const message=e.code==='23505'?(pathError(error)==='customers_unique_gstin'?'This GST number already belongs to another customer. Open the existing profile.':'This record or effective rate date already exists.'):e.issues?e.issues.map(i=>`${i.path.join('.')}: ${i.message}`).join('; '):e.message||'Unable to save. Try again.';
   return NextResponse.json({error:message},{status:400});
  }
 }
+
+function pathError(e:unknown){return (e as {constraint?:string}).constraint;}

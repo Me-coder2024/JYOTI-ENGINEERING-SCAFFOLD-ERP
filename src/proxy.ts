@@ -3,6 +3,8 @@ import { sessionUser } from './shared/auth-server';
 import { allowed, homeFor } from './shared/access';
 export async function proxy(req:NextRequest) {
  const path=req.nextUrl.pathname;
+ if(path.startsWith('/api/manufacturing'))return NextResponse.json({error:'Manufacturing has been retired.'},{status:410});
+ if(path.startsWith('/manufacturing')||path==='/modules')return NextResponse.redirect(new URL('/rental',req.url));
  if(path==='/api/login')return NextResponse.json({error:'Use the shared login at /login.'},{status:403});
  if(path==='/api/logout')return NextResponse.rewrite(new URL('/api/shared/logout',req.url));
  if(path==='/api/shared/login'||path==='/api/shared/logout')return NextResponse.next();

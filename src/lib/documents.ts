@@ -1,3 +1,5 @@
+import {materialExport} from '@/rental/material-export';
+import Decimal from 'decimal.js';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import ExcelJS from 'exceljs';
 import { pool } from './db';
@@ -58,6 +60,7 @@ export async function makePdf(record:Obj,quotation=false) {
   if(s.damages.length){y-=8;line('DAMAGE CHARGES',10,true);for(const d of s.damages) wrap(`${d.name}: ${d.quantity} damaged x INR ${d.price} original price = INR ${d.amount} (${d.date})`);}
   y-=12;line(`Rental subtotal: INR ${s.rental_total}`,10);line(`Damage charges: INR ${s.damage_total}`,10);line(`Subtotal: INR ${s.subtotal}`,10);line(`GST (${s.gst_percent}%): INR ${s.gst_amount}`,10);line(`TOTAL PAYABLE: INR ${s.grand_total}`,15,true);
   wrap(s.notes);
+  if(record.payments){line('PAYMENT STATUS (as of export time)',10,true);let paid=new Decimal(0);for(const p of record.payments){paid=paid.add(p.total);line(`${p.date} | ${p.voucher_no} | Received INR ${p.total}`,9);}line(`Payments received: INR ${paid.toFixed(2)}`,10);line(`Balance due: INR ${new Decimal(s.grand_total).sub(paid).toFixed(2)}`,11,true);}
  }
  y-=12;wrap(`Bank: ${c.bank_name} | Account: ${c.bank_account} | IFSC: ${c.bank_ifsc}`,9,true);wrap(quotation?s.terms:c.terms,8);
  const pages=doc.getPages();pages.forEach((p,i)=>p.drawText(`Jyoti Rental Desk  |  ${i+1} / ${pages.length}`,{x:40,y:25,size:8,font}));
@@ -66,9 +69,7 @@ export async function makePdf(record:Obj,quotation=false) {
 export async function makeExcel(kind:string,customerId?:string) {
  const book=new ExcelJS.Workbook(),sheet=book.addWorksheet(kind==='ledger'?'Customer ledger':'Invoices');
  if(kind==='ledger') {
-  sheet.columns=[{header:'Customer',key:'customer',width:28},{header:'Item',key:'item',width:34},{header:'Date',key:'date',width:14},{header:'Movement',key:'type',width:14},{header:'Quantity',key:'quantity',width:12},{header:'Physical balance',key:'physical',width:19},{header:'Billable balance',key:'billable',width:19},{header:'Damaged qty',key:'damaged_quantity',width:16},{header:'Original price',key:'damage_price',width:16},{header:'Note',key:'note',width:32}];
-  const ms=(await pool.query(`SELECT m.*,c.name AS customer,i.name AS item FROM movements m JOIN customers c ON c.id=m.customer_id JOIN items i ON i.id=m.item_id ${customerId?'WHERE customer_id=$1':''} ORDER BY date,created_at,id`,customerId?[customerId]:[])).rows;
-  for(const m of ms){const history=ms.filter(x=>x.customer_id===m.customer_id&&x.item_id===m.item_id).map(x=>({...x,created_at:x.created_at.toISOString()}));const t=timelines(history);sheet.addRow({...m,physical:balanceAt(t.physical,m.date),billable:balanceAt(t.billable,m.date)});}
+ return (await materialExport(new URLSearchParams({customer:customerId||'',start:'1900-01-01',end:today(),format:'xlsx'}))).bytes;
  } else if(kind==='invoices') {
   sheet.columns=[{header:'Invoice',key:'invoice_no',width:24},{header:'Customer',key:'name',width:28},{header:'From',key:'period_start',width:14},{header:'To',key:'period_end',width:14},{header:'Status',key:'status',width:12},{header:'Rental',key:'rental_total',width:18},{header:'Damage',key:'damage_total',width:18},{header:'GST',key:'gst_amount',width:18},{header:'Total',key:'grand_total',width:20}];
   const rows=(await pool.query('SELECT i.*,c.name FROM invoices i JOIN customers c ON c.id=i.customer_id ORDER BY generated_at DESC')).rows;
@@ -76,5 +77,5 @@ export async function makeExcel(kind:string,customerId?:string) {
  }else throw new Error('Unknown export.');
  sheet.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};sheet.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF173B36'}};sheet.views=[{state:'frozen',ySplit:1}];sheet.autoFilter={from:{row:1,column:1},to:{row:1,column:sheet.columnCount}};
  book.creator='Jyoti Rental Desk';book.created=new Date(today());
- return book.xlsx.writeBuffer();
+ return new Uint8Array(await book.xlsx.writeBuffer());
 }

@@ -1,0 +1,4 @@
+export type MaterialRow={date:string;type:string;reference:string;quantity:number;item_id:string;id:string;created_at?:string};
+export function materialGroups(items:{id:string;name:string}[],movements:MaterialRow[],start:string,end:string,item=''){
+ return items.filter(i=>!item||i.id===item).map(i=>{const all=movements.filter(m=>m.item_id===i.id&&m.date<=end).sort((a,b)=>a.date.localeCompare(b.date)||String(a.created_at||'').localeCompare(String(b.created_at||''))||a.id.localeCompare(b.id));const opening=all.filter(m=>m.date<start).reduce((n,m)=>n+(m.type==='DISPATCH'?1:-1)*Number(m.quantity),0);const rows=all.filter(m=>m.date>=start);const issued=rows.filter(m=>m.type==='DISPATCH').reduce((n,m)=>n+Number(m.quantity),0),received=rows.filter(m=>m.type==='RETURN').reduce((n,m)=>n+Number(m.quantity),0);return {...i,opening,rows,issued,received,pending:opening+issued-received};}).filter(g=>g.rows.length||g.opening!==0);
+}

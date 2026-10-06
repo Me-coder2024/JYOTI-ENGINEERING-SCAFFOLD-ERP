@@ -1,23 +1,21 @@
 import pg from 'pg';
-import { existsSync } from 'node:fs';
+import { supabaseCa } from './supabase-ca';
 pg.types.setTypeParser(1082, v => v);
 const g = globalThis as unknown as { rentalPool?: pg.Pool };
 
 function buildPoolConfig(): pg.PoolConfig {
   const raw = process.env.DATABASE_URL || '';
   const config: pg.PoolConfig = { connectionString: raw, max: 8, connectionTimeoutMillis: 5000 };
-  // When sslrootcert points to a local file that doesn't exist (e.g. Vercel production),
-  // strip it from the URL and use ssl: { rejectUnauthorized: false } instead.
-  try {
+  // Hosted Supabase connections use a bundled public CA, never a workstation path.
+  if (raw) {
     const url = new URL(raw);
-    const certPath = url.searchParams.get('sslrootcert');
-    if (certPath && !existsSync(certPath)) {
-      url.searchParams.delete('sslrootcert');
-      url.searchParams.set('sslmode', 'no-verify');
+    if (url.hostname.endsWith('.pooler.supabase.com') || url.hostname.endsWith('.supabase.co')) {
+      for (const key of ['sslrootcert','sslmode','sslcert','sslkey']) url.searchParams.delete(key);
       config.connectionString = url.toString();
-      config.ssl = { rejectUnauthorized: false };
+      config.ssl = { ca: process.env.SUPABASE_CA_CERT || supabaseCa, rejectUnauthorized: true };
+      config.connectionTimeoutMillis = 15000;
     }
-  } catch { /* not a valid URL, let pg handle it */ }
+  }
   return config;
 }
 
