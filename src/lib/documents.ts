@@ -1,3 +1,4 @@
+import {invoicePdf} from '@/rental/print-documents';
 import {materialExport} from '@/rental/material-export';
 import Decimal from 'decimal.js';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
@@ -6,6 +7,7 @@ import { pool } from './db';
 import { balanceAt, timelines, today } from './engine';
 type Obj = Record<string, any>;
 export async function makePdf(record:Obj,quotation=false) {
+ if(!quotation)return invoicePdf(record);
  const s=record.snapshot,c=s.company,customer=s.customer;
  const doc=await PDFDocument.create(),font=await doc.embedFont(StandardFonts.Helvetica),bold=await doc.embedFont(StandardFonts.HelveticaBold);
  let page=doc.addPage([595.28,841.89]),y=797;

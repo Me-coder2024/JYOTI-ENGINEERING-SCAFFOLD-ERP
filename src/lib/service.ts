@@ -89,7 +89,7 @@ export async function saveMovement(input: unknown, preview=false) {
    return {previews};
  });
 }
-const invoiceSchema=z.object({customer_id:uuid,period_start:date,period_end:date,gst_percent:z.coerce.number().min(0).max(100),notes:text.default('')});
+const invoiceSchema=z.object({customer_id:uuid,period_start:date,period_end:date,gst_percent:z.coerce.number().min(0).max(100),notes:text.default(''),document_details:z.object({ship_to:text.max(2000).default(''),delivery_note:text.max(200).default(''),delivery_date:z.union([date,z.literal('')]).default(''),payment_terms:text.max(200).default(''),reference:text.max(200).default(''),dispatch_document:text.max(200).default(''),dispatched_through:text.max(200).default(''),destination:text.max(200).default(''),lr_number:text.max(200).default(''),vehicle_no:text.max(200).default(''),delivery_terms:text.max(1000).default(''),place_of_supply:text.max(200).default(''),tax_mode:z.enum(['GST','CGST_SGST','IGST']).default('GST')}).optional()});
 async function calculateInvoice(db: PoolClient, input: unknown) {
  const d=invoiceSchema.parse(input);
  if(d.period_start>d.period_end) throw new Error('Period start must be before period end.');
@@ -131,7 +131,7 @@ export async function finalizeInvoice(id:string) {
    if(invoice.status==='FINAL') return {id};
    const overlap=(await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start<=$3 AND period_end>=$2`,[invoice.customer_id,invoice.period_start,invoice.period_end])).rows;
    if(overlap.length) throw new Error(`Period overlaps ${overlap[0].invoice_no}.`);
-   const fresh=await calculateInvoice(db,invoice);
+   const fresh=await calculateInvoice(db,{...invoice,document_details:invoice.snapshot.document_details});
    if(JSON.stringify(fresh)!==JSON.stringify(invoice.snapshot)) {
      // JSONB key order is not stable: compare canonicalized snapshots.
      const stable=(v:unknown):string=>JSON.stringify(v,(_k,val)=>val&&typeof val==='object'&&!Array.isArray(val)?Object.fromEntries(Object.entries(val).sort(([a],[b])=>a.localeCompare(b))):val);

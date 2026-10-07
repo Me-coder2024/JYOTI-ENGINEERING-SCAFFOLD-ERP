@@ -18,3 +18,5 @@
 .material-ledger-help{font-size:12px;color:var(--muted);margin:0 0 20px}
 .material-ledger-group th:nth-last-child(-n+3),.material-ledger-group td:nth-last-child(-n+3):not([colspan]){text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:600px){.panel.ledger-controls{padding:16px;gap:14px}.ledger-controls>label,.ledger-controls>label:first-child{flex:1 1 100%}.material-export-actions{width:100%}.material-export-actions .secondary{flex:1}}
+
+.account-current-balance{display:block;margin-top:8px;color:#19634e;font-size:12px}@media print{.account-current-balance{display:none!important}}
