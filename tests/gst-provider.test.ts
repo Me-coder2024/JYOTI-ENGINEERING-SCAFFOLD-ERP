@@ -17,3 +17,19 @@ test('GST provider direct lookup, bounded backup keys, terminal errors and secre
   delete process.env.GSTINCHECK_API_KEYS;delete process.env.GSTINCHECK_API_KEY;assert.equal(await lookupProvider(gstin),null);
  }finally{globalThis.fetch=original;if(old===undefined)delete process.env.GSTINCHECK_API_KEYS;else process.env.GSTINCHECK_API_KEYS=old;if(oldSingle===undefined)delete process.env.GSTINCHECK_API_KEY;else process.env.GSTINCHECK_API_KEY=oldSingle;}
 });
+
+test('GSTINAPI is used only after primary quota failure and uses header authentication',async()=>{
+ const original=globalThis.fetch,old=process.env.GSTINCHECK_API_KEYS,backup=process.env.GSTINAPI_API_KEY;
+ const gstin='09FBMPA8295P1ZM';let urls:string[]=[];
+ try{
+ process.env.GSTINCHECK_API_KEYS='primary';process.env.GSTINAPI_API_KEY='backup-secret';
+ globalThis.fetch=(async(url:any,options:any)=>{urls.push(String(url));if(String(url).includes('gstincheck'))return Response.json({flag:false,message:'Credit limit exhausted'});
+ assert.equal(options.headers['x-api-key'],'backup-secret');assert.ok(!String(url).includes('backup-secret'));
+ return Response.json({success:true,data:{gstin,legal_name:'Legal Name',trade_name:'Trade Name',status:'Active',taxpayer_type:'Regular',address:'Full address'}});}) as typeof fetch;
+ assert.equal((await lookupProvider(gstin))?.mailing_name,'Legal Name');assert.equal(urls.length,2);
+ urls=[];globalThis.fetch=(async(url:any)=>{urls.push(String(url));return Response.json({flag:true,data:{gstin,lgnm:'Primary Company',pradr:{adr:'Address'}}});}) as typeof fetch;
+ assert.equal((await lookupProvider(gstin))?.name,'Primary Company');assert.equal(urls.length,1);
+ globalThis.fetch=(async(url:any)=>String(url).includes('gstincheck')?new Response('',{status:402}):new Response('',{status:402})) as typeof fetch;
+ await assert.rejects(()=>lookupProvider(gstin),/backup credits are exhausted/);
+ }finally{globalThis.fetch=original;if(old===undefined)delete process.env.GSTINCHECK_API_KEYS;else process.env.GSTINCHECK_API_KEYS=old;if(backup===undefined)delete process.env.GSTINAPI_API_KEY;else process.env.GSTINAPI_API_KEY=backup;}
+});
