@@ -13,3 +13,11 @@ Item recovery: restored 73 historical item-master entries and 33 historical rate
 
 GST verification: official search and CAPTCHA endpoints responded successfully from the local server; session security and response mapping are tested with mocked responses. A successful live taxpayer lookup still requires a user-entered CAPTCHA.
 
+
+## GSTINCheck configuration
+
+Set GSTINCHECK_API_KEY in the server environment for direct name/address lookup without CAPTCHA. The supplied key is saved only in ignored local .env and deploy/production.env files; add it separately to Vercel Environment Variables and redeploy. Never use a NEXT_PUBLIC variable for this key.
+
+For provider-authorised backup credentials, set GSTINCHECK_API_KEYS to a comma-separated ordered list (maximum three). This overrides the single-key variable; duplicate keys are removed. Backup attempts occur for network failures, provider outages, denied credentials and recognised quota/credit errors. Invalid or unmatched GSTIN results stop immediately. Each attempt times out after eight seconds. No subscription, top-up or purchase is performed by the ERP. Provider usage may consume the allowance or credits attached to each configured key. Do not use trial-account rotation to circumvent provider limits.
+
+When no provider key is configured, the official portal CAPTCHA workflow remains available. If configured keys fail, the form reports the provider failure and offers official search/import. Successful profile details are saved when the user saves the profile; lookup alone does not modify customer records.
