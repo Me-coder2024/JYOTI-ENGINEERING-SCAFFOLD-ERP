@@ -20,3 +20,10 @@
 @media(max-width:600px){.panel.ledger-controls{padding:16px;gap:14px}.ledger-controls>label,.ledger-controls>label:first-child{flex:1 1 100%}.material-export-actions{width:100%}.material-export-actions .secondary{flex:1}}
 
 .account-current-balance{display:block;margin-top:8px;color:#19634e;font-size:12px}@media print{.account-current-balance{display:none!important}}
+
+/* Required markers follow validation, including controls inside search selectors. */
+label:has(:is(input, select, textarea)[required]:not(:disabled):not([readonly])) > span:first-child::after {
+  content: " *";
+  color: #b42318;
+  font-weight: 700;
+}
