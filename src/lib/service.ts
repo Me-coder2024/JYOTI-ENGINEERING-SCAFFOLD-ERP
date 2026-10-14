@@ -59,8 +59,8 @@ export async function saveMovement(input: unknown, preview=false) {
  if(d.date>today()) throw new Error('Future stock movements are not allowed.');
  if(new Set(d.lines.map(l=>l.item_id)).size!==d.lines.length) throw new Error('Choose each item only once per entry.');
  return transaction(async db => {
-   await db.query('SELECT pg_advisory_xact_lock(914712)');
-   const c=(await db.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE',[d.customer_id])).rows[0];
+   if (!preview) await db.query('SELECT pg_advisory_xact_lock(914712)');
+   const c=(await db.query('SELECT * FROM customers WHERE id=$1' + (preview ? '' : ' FOR UPDATE'),[d.customer_id])).rows[0];
    if(!c) throw new Error('Customer not found.');
    await checkFinal(db,c.id,d.date);
    const previews=[];
@@ -89,7 +89,7 @@ export async function saveMovement(input: unknown, preview=false) {
      await audit(db,'MOVEMENT_CREATE',id,{...m,customer_id:c.id});
    }
    return {previews};
- });
+ }, preview);
 }
 const invoiceSchema=z.object({customer_id:uuid,period_start:date,period_end:date,gst_percent:z.coerce.number().min(0).max(100),notes:text.default(''),document_details:z.object({ship_to:text.max(2000).default(''),delivery_note:text.max(200).default(''),delivery_date:z.union([date,z.literal('')]).default(''),payment_terms:text.max(200).default(''),reference:text.max(200).default(''),dispatch_document:text.max(200).default(''),dispatched_through:text.max(200).default(''),destination:text.max(200).default(''),lr_number:text.max(200).default(''),vehicle_no:text.max(200).default(''),delivery_terms:text.max(1000).default(''),place_of_supply:text.max(200).default(''),tax_mode:z.enum(['GST','CGST_SGST','IGST']).default('GST')}).optional()});
 async function calculateInvoice(db: PoolClient, input: unknown) {

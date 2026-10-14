@@ -22,9 +22,9 @@ function buildPoolConfig(): pg.PoolConfig {
 }
 
 export const pool = g.rentalPool || new pg.Pool(buildPoolConfig());
-if (process.env.NODE_ENV !== 'production') g.rentalPool = pool;
-export async function transaction<T>(fn: (db: pg.PoolClient) => Promise<T>) {
+g.rentalPool = pool;
+export async function transaction<T>(fn: (db: pg.PoolClient) => Promise<T>, readOnly = false) {
   const db = await pool.connect();
-  try { await db.query('BEGIN'); const value = await fn(db); await db.query('COMMIT'); return value; }
+  try { await db.query(readOnly ? 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY' : 'BEGIN'); const value = await fn(db); await db.query('COMMIT'); return value; }
   catch (error) { await db.query('ROLLBACK'); throw error; } finally { db.release(); }
 }

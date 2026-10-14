@@ -65,7 +65,7 @@ export function clearMovementDraft(type:string){
  }catch{}
 }
 
-export default function MovementForm({data,initial,busy,onSave}:{data:RecordData;initial:RecordData;busy:boolean;onSave:(value:RecordData)=>void}) {
+export default function MovementForm({data,initial,busy,onSave}:{data:RecordData;initial:RecordData;busy:boolean;onSave:(value:RecordData)=>Promise<boolean>}) {
  const isReturn=initial.type==='RETURN';
 
  // ── Restore draft on mount ──
@@ -81,6 +81,8 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
  const [preview,setPreview]=useState<RecordData|null>(null);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(false);
+ const [retry,setRetry]=useState(0);
+ const previewFlight=useRef<Promise<unknown>>(Promise.resolve());
  const [showDraftNotice,setShowDraftNotice]=useState(hasDraft);
 
  const savedSuccessfullyRef=useRef(false);
@@ -121,12 +123,19 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
   let cancelled=false;
   const timer=setTimeout(async()=>{
    setLoading(true);
-   try{const result=await previewMovement(JSON.parse(payloadKey));if(!cancelled)setPreview({...result,payloadKey});}
+   try{
+    await previewFlight.current.catch(()=>{});
+    if(cancelled)return;
+    const request=previewMovement(JSON.parse(payloadKey));
+    previewFlight.current=request;
+    const result=await request;
+    if(!cancelled)setPreview({...result,payloadKey});
+   }
    catch(e){if(!cancelled)setError((e as Error).message);}
    finally{if(!cancelled)setLoading(false);}
-  },300);
+  },600);
   return()=>{cancelled=true;clearTimeout(timer);};
- },[payloadKey,valid]);
+ },[payloadKey,valid,retry]);
  function changeLine(index:number,values:Partial<EntryLine>) {
   setLines(current=>current.map((line,i)=>i===index?{...line,...values}:line));
  }
@@ -146,9 +155,13 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
  async function handleSave(){
   if(preview?.payloadKey===payloadKey&&!busy){
    savedSuccessfullyRef.current=true;
-   clearMovementDraft(initial.type);
    try{
-    await onSave(payload);
+    const saved=await onSave(payload);
+    if(saved)clearMovementDraft(initial.type);
+    else{
+     savedSuccessfullyRef.current=false;
+     saveDraft(initial.type,{customer,date,lines,note,reference});
+    }
    }catch{
     savedSuccessfullyRef.current=false;
     saveDraft(initial.type,{customer,date,lines,note,reference});
@@ -179,7 +192,7 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
    })}
    <button type="button" className="text-button" onClick={()=>setLines(current=>[...current,emptyLine()])}><Plus size={16}/>Add another item</button>
   </div>
-  {error&&<div className="alert error" role="alert">{error}</div>}
+  {error&&<div className="alert error" role="alert">{error}<p>Your entered details are still here. Retry the balance check when the connection is available.</p><button type="button" className="text-button" onClick={()=>setRetry(n=>n+1)}>Retry check</button></div>}
   {loading&&<p className="muted">Checking balances and rates…</p>}
   {preview?.payloadKey===payloadKey&&preview?.previews.map((p:RecordData)=><div className="balance-preview" key={p.item_id}>
    <strong>{p.name}</strong>
