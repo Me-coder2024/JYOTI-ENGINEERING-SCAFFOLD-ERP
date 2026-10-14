@@ -1,7 +1,7 @@
 'use client';
 import GstLookup from '@/rental/gst-lookup';
 import MaterialLedger from '@/rental/material-ledger-ui';
-import MovementForm from './movement-form';
+import MovementForm, { clearMovementDraft } from './movement-form';
 import { useEffect, useState, type ReactNode, type FormEvent } from 'react';
 import { ArrowDownLeft, ArrowUpRight, ArrowRight, Building2, Boxes, CalendarDays, Check, ChevronDown, ClipboardList, Download, FileText, LayoutDashboard, LogOut, Plus, Search, Settings, ShieldCheck, Truck, Users, X, AlertTriangle, IndianRupee, PackageCheck, Menu, Pencil } from 'lucide-react';
 import { balanceAt, segments, timelines, today, daysBetween } from '@/lib/engine';
@@ -54,7 +54,7 @@ export default function RentalApp({signedIn}:{signedIn:boolean}) {
    {error&&<div className="alert error" role="alert">{error}</div>}
    {modal.kind==='customer'&&<CustomerForm initial={modal.record} busy={busy} onSave={async d=>{if(await act(()=>api('customers',d),'Customer saved. Existing batch lock dates remain unchanged.'))setModal(null);}}/>}
    {modal.kind==='item'&&<ItemForm initial={modal.record} rates={data.rates} busy={busy} onSave={async d=>{if(await act(()=>api('items',d),'Item saved. Existing damage prices remain unchanged.'))setModal(null);}}/>}
-   {modal.kind==='movement'&&<MovementForm data={data} initial={modal.record||{}} busy={busy} onSave={async d=>{let note='Movement saved.';if(await act(async()=>{const result=await api('movements',d);const pending=result.previews.flatMap((p:Obj)=>p.deferred);if(pending.length)note+=` ${pending.reduce((s:number,p:Obj)=>s+p.quantity,0)} returned units remain billable until their batch lock dates.`;setNotice(note);},'')){setNotice(note);setModal(null);}}}/>}
+   {modal.kind==='movement'&&<MovementForm data={data} initial={modal.record||{}} busy={busy} onSave={async d=>{let note='Movement saved.';if(await act(async()=>{const result=await api('movements',d);const pending=result.previews.flatMap((p:Obj)=>p.deferred);if(pending.length)note+=` ${pending.reduce((s:number,p:Obj)=>s+p.quantity,0)} returned units remain billable until their batch lock dates.`;setNotice(note);},'')){clearMovementDraft(d.type||modal.record?.type||'DISPATCH');setNotice(note);setModal(null);}}}/>}
    {modal.kind==='invoice'&&<InvoiceForm data={data} initial={modal.record} busy={busy} onSave={async d=>{if(await act(()=>api(modal.record?.id?'invoices/'+modal.record.id:'invoices',d),'Draft saved. Review it in Invoice History before finalizing.')){setModal(null);go('Invoices');}}}/>}
    {modal.kind==='invoice-detail'&&<InvoiceDetail invoice={modal.record!} onEdit={()=>setModal({kind:'invoice',record:modal.record})} busy={busy} onFinalize={async()=>{if(await act(()=>api(`invoices/${modal.record!.id}/finalize`,{}),'Invoice finalized and locked.'))setModal({kind:'invoice-detail',record:await api('invoices/'+modal.record!.id)});}}/>}
    {modal.kind==='quotation'&&<QuotationForm data={data} busy={busy} onSave={async d=>{if(await act(()=>api('quotations',d),'Quotation saved. Download the PDF from the quotation list.'))setModal(null);}}/>}
