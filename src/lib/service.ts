@@ -1,3 +1,4 @@
+import {paymentRowsSql,paymentSummary} from '@/rental/payments';
 import {validGstin} from '@/rental/gst';
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
@@ -24,7 +25,8 @@ export async function state() {
    const t = timelines(ms);
    balances.push({ customer_id:c.id,item_id:i.id, physical:balanceAt(t.physical,today()),billable:balanceAt(t.billable,today()),pending:t.allocations.filter(a => a.return_date<=today() && a.billing_date>today()),last_movement:ms.at(-1).date });
  }
- return { company:company[0],customers,items,rates,movements,invoices,quotations,balances,today:today() };
+ const payments=(await pool.query(paymentRowsSql)).rows;
+ return { company:company[0],customers,items,rates,movements,invoices:invoices.map(i=>({...i,...paymentSummary(i.grand_total,payments.filter(p=>p.invoice_id===i.id))})),quotations,balances,today:today() };
 }
 export async function saveCustomer(input: unknown) {
  const d = customerSchema.parse(input), id=d.id||randomUUID();

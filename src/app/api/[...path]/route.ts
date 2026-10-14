@@ -1,3 +1,4 @@
+import {paymentRowsSql,paymentSummary} from '@/rental/payments';
 import {materialExport} from '@/rental/material-export';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
@@ -16,7 +17,8 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{path:string[
   if(path[0]==='invoices' && path[1]) {
    const invoice=(await pool.query('SELECT * FROM invoices WHERE id=$1',[path[1]])).rows[0];
    if(!invoice) return NextResponse.json({error:'Invoice not found.'},{status:404});
-   invoice.payments=(await pool.query("SELECT v.voucher_no,v.date,v.total FROM rental_acc_vouchers v WHERE v.details->>'receipt_invoice_id'=$1 AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id) ORDER BY v.date,v.created_at",[invoice.id])).rows;
+   invoice.payments=(await pool.query('SELECT * FROM ('+paymentRowsSql+') p WHERE invoice_id=$1 ORDER BY date,voucher_no',[invoice.id])).rows;
+   Object.assign(invoice,paymentSummary(invoice.grand_total,invoice.payments));
    if(path[2]==='pdf') return new Response(new Uint8Array(await makePdf(invoice)),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${invoice.invoice_no.replaceAll('/','-')}.pdf"`}});
    return NextResponse.json(invoice);
   }
