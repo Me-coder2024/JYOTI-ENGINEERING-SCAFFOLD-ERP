@@ -40,7 +40,9 @@ export function timelines(movements: Movement[], asOf = today()) {
         const consumed = Math.min(remaining, lot.physical);
         if (!consumed) continue;
         lot.physical -= consumed; remaining -= consumed;
-        const effective = m.date > lot.lock_until ? m.date : lot.lock_until;
+        // Physical stock returns today; rent includes the return day. lock_until is exclusive.
+        const followingDay = addDays(m.date, 1);
+        const effective = followingDay > lot.lock_until ? followingDay : lot.lock_until;
         if (effective <= asOf) lot.billable -= consumed;
         billable.push({ date: effective, qty: -consumed });
         allocations.push({ return_id: m.id, lot_id: lot.id, quantity: consumed, return_date: m.date, billing_date: effective });

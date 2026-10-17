@@ -1,3 +1,4 @@
+import {referenceRows,renderPartyReference} from './party-reference';
 import {z} from 'zod';
 import {transaction} from '@/lib/db';
 import {reportDate} from './material-export';
@@ -14,7 +15,9 @@ export async function partyExport(params:URLSearchParams){
   const rows:ReportRow[]=[{values:{Particulars:'Opening Balance',Balance:balanceText(summary.opening)},strong:true}];
   for(const row of summary.rows)rows.push({values:{Date:row.date,Vhty:row.type,Reference:row.reference,Particulars:row.narration,Debit:Number(row.debit),Credit:Number(row.credit),Balance:balanceText(row.balance)}});
   rows.push({values:{Particulars:'Closing Balance',Debit:Number(summary.debit),Credit:Number(summary.credit),Balance:balanceText(summary.closing)},strong:true});
-  return {party:ledger.party_details?.mailing_name||ledger.name,address:ledger.party_details?.address||'',start:d.start,end:d.end,rows};
+  const company=(await db.query('SELECT * FROM company WHERE id=1')).rows[0]||{};
+  return {reference:referenceRows(summary,vouchers,d.ledger,d.start),companyAddress:company.unit1||'',party:ledger.party_details?.mailing_name||ledger.name,address:ledger.party_details?.address||'',start:d.start,end:d.end,rows};
  },true);
- return renderLedger(report,(await loadFormats()).party,d.format);
+ const settings=(await loadFormats()).party;
+ return settings.layout==='table'?renderLedger(report,settings,d.format):renderPartyReference({...report,rows:report.reference},settings,d.format);
 }

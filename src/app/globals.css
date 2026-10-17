@@ -27,3 +27,8 @@ label:has(:is(input, select, textarea)[required]:not(:disabled):not([readonly]))
   color: #b42318;
   font-weight: 700;
 }
+
+/* SnapAi watermark – every page */
+.snapai-watermark{position:fixed;bottom:14px;right:20px;z-index:9999;font-size:11px;color:#a0aaa4;letter-spacing:.3px;font-family:'DM Sans',Arial,sans-serif;pointer-events:none;user-select:none;opacity:.7;display:flex;align-items:center;gap:4px}
+.snapai-watermark strong{font-weight:700;color:#6c8575;letter-spacing:.1px}
+@media print{.snapai-watermark{display:none!important}}

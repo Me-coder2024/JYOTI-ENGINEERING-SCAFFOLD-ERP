@@ -206,3 +206,15 @@
 .erp-wrapper .a-register-filter .m-field { margin: 0; gap: 8px; }
 .erp-wrapper .a-main > .a-filters { margin-bottom: 20px; }
 @media(max-width:650px){.erp-wrapper .a-register-filter { padding:14px; margin-bottom:16px; }}
+
+/* Consistent spacing for accounting settings and entry-form actions. */
+.erp-wrapper .a-app form.m-panel.a-pad { padding:24px; }
+.erp-wrapper .a-app form.m-panel.a-pad > .m-help:first-child { margin-top:0; margin-bottom:20px; }
+.erp-wrapper .a-app form > .m-form-grid { column-gap:20px; row-gap:20px; }
+.erp-wrapper .a-app form > :is(button.primary,button.secondary) { margin-top:20px; }
+.erp-wrapper .a-app form > .m-form-section-title { margin:24px 0 14px; }
+.erp-wrapper .a-app .m-dialog > a.secondary + p { margin-top:16px; }
+@media(max-width:650px) {
+ .erp-wrapper .a-app form.m-panel.a-pad { padding:16px; }
+ .erp-wrapper .a-app form > .m-form-grid { gap:16px; }
+}

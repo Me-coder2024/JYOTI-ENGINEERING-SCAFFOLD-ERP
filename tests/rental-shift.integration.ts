@@ -51,6 +51,21 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  console.log('PASS: owner-only movement correction, stale edit rejection, dependent-return protection, allocation rebuild and immutable deletion history.');
  const movements=(await pool.query('SELECT * FROM movements')).rows;const group=materialGroups([{id:item.id,name:'Pipe'}],movements,'2026-01-02','2026-01-03')[0];assert.equal(group.opening,174);assert.equal(group.received,156);assert.equal(group.pending,18);
  await mkdir('test-results/rental-shift',{recursive:true});for(const format of ['pdf','xlsx']){const out=await materialExport(new URLSearchParams({customer:customer.id,start:'2026-01-01',end:'2026-01-31',format}));await writeFile('test-results/rental-shift/material-ledger.'+format,new Uint8Array(out.bytes));if(format==='xlsx'){const b=new ExcelJS.Workbook();await b.xlsx.load(Buffer.from(out.bytes) as any);const text=JSON.stringify(b.getWorksheet(1)!.getSheetValues());assert.ok(text.includes('Issu Qty'));assert.ok(!/Original price|damage_price|rental_rate/.test(text));}}
+ const {movementExport}=await import('../src/rental/movement-export');
+ for(const format of ['pdf','xlsx']){
+  const out=await movementExport(new URLSearchParams({start:'2026-01-02',end:'2026-01-03',type:'RETURN',search:'EXAMPLE',format}));
+  await writeFile('test-results/rental-shift/movement-history.'+format,out.bytes);
+  if(format==='xlsx'){
+   const book=new ExcelJS.Workbook();await book.xlsx.load(Buffer.from(out.bytes) as any);
+   const text=JSON.stringify(book.getWorksheet(1)!.getSheetValues());
+   assert.ok(text.includes('0211')&&text.includes('0237'));assert.ok(!text.includes('01164'));
+  }
+ }
+ await assert.rejects(movementExport(new URLSearchParams({start:'2026-02-01',end:'2026-01-01',format:'pdf'})),/Start date/);
+ const quotation=await s.saveQuotation({customer_id:customer.id,date:'2026-01-01',deposit:100,terms:'Sample terms',reference:'TEST/Q1',gst_percent:18,required_documents:'GST certificate',lines:[{item_id:item.id,quantity:10,rate:2}]});
+ const quote=(await pool.query('SELECT * FROM quotations WHERE id=$1',[quotation.id])).rows[0];
+ assert.equal(quote.snapshot.reference,'TEST/Q1');assert.equal(quote.snapshot.lines[0].daily_total,'20.00');assert.equal(quote.snapshot.gst_percent,18);
+ console.log('PASS: date/type/search-filtered PDF/Excel history and saved quotation financial fields.');
  const invoice:any=await s.createInvoice({customer_id:customer.id,period_start:'2026-01-01',period_end:'2026-01-31',gst_percent:0,notes:'',document_details:{payment_terms:'Within 15 days',tax_mode:'CGST_SGST'}});await s.finalizeInvoice(invoice.id);assert.equal((await pool.query('SELECT snapshot FROM invoices WHERE id=$1',[invoice.id])).rows[0].snapshot.document_details.payment_terms,'Within 15 days');const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});await a.saveAccountingSettings(owner,{company_name:'Jyoti Scaffold Private Limited',financial_year_start:'2026-01-01',closed_through:''});const bank=await a.saveLedger(owner,{name:'Bank',group_name:'Bank Accounts',party_details:{},is_active:true});const receipt={id:randomUUID(),type:'Receipt',date:today,narration:'Invoice payment',lines:[{ledger_id:bank.id,debit:10,credit:0},{ledger_id:ledger.id,debit:0,credit:10}],details:{receipt_invoice_id:invoice.id}};await a.postVoucher(owner,receipt);assert.equal((await a.postVoucher(owner,receipt)).repeated,true);await assert.rejects(a.postVoucher(owner,{...receipt,id:randomUUID(),lines:[{ledger_id:bank.id,debit:999999,credit:0},{ledger_id:ledger.id,debit:0,credit:999999}]}),/exceeds/);const reversed={id:randomUUID(),type:'Journal',date:today,narration:'Reverse payment',reverses_id:receipt.id,lines:receipt.lines.map(l=>({...l,debit:l.credit,credit:l.debit}))};await a.postVoucher(owner,reversed);assert.equal((await pool.query("SELECT count(*) n FROM rental_acc_vouchers v WHERE v.details->>'receipt_invoice_id'=$1 AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id)",[invoice.id])).rows[0].n,'0');
 
  const invoiceA=randomUUID(),invoiceB=randomUUID();

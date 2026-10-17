@@ -4,6 +4,7 @@ export const reportColumns={
  party:['Date','Vhty','Reference','Particulars','Debit','Credit','Balance']
 };
 export const formatSchema=z.object({
+ layout:z.enum(['reference','table']).default('reference'),
  heading:z.string().trim().min(1).max(100),
  title:z.string().trim().min(1).max(80),
  orientation:z.enum(['portrait','landscape']),
@@ -14,6 +15,7 @@ export const formatSchema=z.object({
 export type LedgerFormat=z.infer<typeof formatSchema>;
 export type LedgerModule=keyof typeof reportColumns;
 export function defaultFormat(module:LedgerModule):LedgerFormat{return {
+ layout:'reference',
  heading:'Jyoti Engineering & Scarfolding Pvt Ltd',
  title:module==='material'?'MATERIAL LEDGER REPORT':'PARTY LEDGER REPORT',
  orientation:'portrait',font_size:8,footer:'',columns:[...reportColumns[module]]

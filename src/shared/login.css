@@ -1,0 +1,41 @@
+.jyoti-login{min-height:100vh;min-height:100svh;display:grid;grid-template-columns:1.18fr 1fr;background:#f7f9fc;font-family:Inter,"Segoe UI",Arial,sans-serif;color:#24364b}
+.jyoti-login-visual{position:relative;min-height:100vh;overflow:hidden;background:#173b67;color:white;isolation:isolate}
+.jyoti-building{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:100% 50%;z-index:-3}
+.jyoti-photo-shade{position:absolute;inset:0;z-index:-2;background:linear-gradient(180deg,rgba(15,43,72,.25),rgba(16,41,67,.02) 35%,rgba(13,37,65,.72) 75%,rgba(13,34,58,.95))}
+.jyoti-login-brand{display:flex;align-items:center;gap:13px;position:absolute;left:48px;top:38px;font-size:24px;font-weight:750;letter-spacing:3px;text-shadow:0 1px 8px #173b6770}
+.jyoti-login-brand img{width:48px;height:48px;border-radius:50%;border:2px solid #ffffffb0}
+.jyoti-login-brand small{display:block;letter-spacing:2px;font-size:9px;font-weight:500;margin-top:5px;color:#e1eaf6}
+.jyoti-login-intro{position:absolute;left:48px;right:40px;bottom:116px}
+.jyoti-login-kicker{font-size:9px;letter-spacing:2px;font-weight:650;color:#e4edf8;display:block;margin-bottom:22px}
+.jyoti-login-intro h1{font-size:clamp(36px,4.1vw,61px);line-height:1.08;letter-spacing:-2px;font-weight:650;margin:0}
+.jyoti-login-intro h1 span{color:#ffda69}
+.jyoti-login-intro p{font-size:14px;line-height:1.8;color:#d8e4f1;margin:24px 0 0}
+.jyoti-photo-footer{position:absolute;bottom:32px;left:48px;right:40px;display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;border-top:1px solid #ffffff36;padding-top:20px;font-size:9px;letter-spacing:.9px;color:#cad8e8}
+.jyoti-login-panel{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:38px 54px;position:relative;min-width:0}
+.jyoti-access-label{align-self:flex-end;font-size:9px;letter-spacing:1.4px;color:#71859e;margin-bottom:45px;display:flex;gap:8px;align-items:center}
+.jyoti-access-label>span{width:6px;height:6px;background:#6389bb;border-radius:50%}
+.jyoti-signin{width:100%;max-width:360px;margin:auto 0}
+.jyoti-signin-icon{background:#e9f1fb;border:1px solid #d5e3f3;color:#33659c;width:48px;height:48px;border-radius:12px;display:grid;place-items:center;margin-bottom:27px}
+.jyoti-signin-eyebrow{font-size:9px;font-weight:650;letter-spacing:1.8px;color:#6e87a5;margin-bottom:10px}
+.jyoti-signin h2{font-size:30px;line-height:1.25;letter-spacing:-1px;font-weight:650;margin:0;color:#213d5c}
+.jyoti-signin>p{font-size:13px;line-height:1.6;color:#7b8ea3;margin:12px 0 32px}
+.jyoti-signin>label{display:block;font-size:12px;font-weight:600;color:#48637f;margin:21px 0 9px}
+.jyoti-signin>label span{color:#a45a3b}
+.jyoti-signin input{width:100%;height:48px;box-sizing:border-box;background:#fff;border:1px solid #cfdbeb;border-radius:7px;padding:12px 14px;color:#243d59;font-family:inherit;font-size:13px;box-shadow:0 2px 5px #1d477005}
+.jyoti-signin input::placeholder{color:#96a5b6}
+.jyoti-signin input:focus{outline:2px solid #638bc1;outline-offset:2px;background:#fffef8}
+.jyoti-password{position:relative}
+.jyoti-password input{padding-right:48px}
+.jyoti-password button{position:absolute;right:4px;top:4px;width:40px;height:40px;display:grid;place-items:center;background:transparent;border:0;color:#7289a2;border-radius:5px}
+.jyoti-signin-submit{display:flex;align-items:center;justify-content:space-between;width:100%;height:48px;margin-top:28px;padding:0 17px;background:#24558e;border:1px solid #24558e;color:white;font-size:13px;font-weight:600;border-radius:7px;box-shadow:0 5px 12px #24558e18}
+.jyoti-signin-submit:hover{background:#173b67}
+.jyoti-signin button:focus-visible{outline:2px solid #638bc1;outline-offset:3px}
+.jyoti-signin-submit:disabled{opacity:.65;cursor:wait}
+.jyoti-signin-help{margin-top:23px;font-size:11px;line-height:1.8;color:#91a0b2;text-align:center}
+.jyoti-signin-help strong{font-weight:500;color:#607b9b}
+.jyoti-login-error{border:1px solid #f1c9be;background:#fff2ed;color:#a34630;font-size:12px;line-height:1.5;padding:12px;border-radius:6px;margin-top:17px;overflow-wrap:anywhere}
+.jyoti-login-footer{display:flex;align-items:flex-start;justify-content:center;gap:9px;color:#8b9db1;font-size:10px;line-height:1.7;margin-top:45px}
+@media(min-width:1500px){.jyoti-login-intro{left:65px;bottom:140px}.jyoti-login-brand,.jyoti-photo-footer{left:65px}.jyoti-signin{max-width:400px}.jyoti-signin h2{font-size:34px}}
+@media(max-width:900px){.jyoti-login{grid-template-columns:1fr 1fr}.jyoti-login-panel{padding:30px}.jyoti-login-brand{left:28px;top:28px}.jyoti-login-intro{left:28px;right:24px;bottom:115px}.jyoti-photo-footer{left:28px;right:24px}.jyoti-login-intro h1{font-size:42px}.jyoti-signin h2{font-size:26px}}
+@media(max-width:650px){.jyoti-login{display:flex;flex-direction:column}.jyoti-login-visual{min-height:240px;height:240px}.jyoti-building{object-position:60% 44%}.jyoti-photo-shade{background:linear-gradient(180deg,#173b6735,#173b6705 45%,#173b67c0)}.jyoti-login-brand{left:22px;top:20px;font-size:19px}.jyoti-login-brand img{width:37px;height:37px}.jyoti-login-brand small{font-size:7px}.jyoti-login-intro{left:22px;bottom:20px}.jyoti-login-intro h1{font-size:25px;letter-spacing:-.6px}.jyoti-login-intro h1 br{display:none}.jyoti-login-intro h1 span{display:block}.jyoti-login-kicker,.jyoti-login-intro p,.jyoti-photo-footer{display:none}.jyoti-login-panel{padding:26px 24px 22px}.jyoti-access-label{align-self:center;margin-bottom:25px;font-size:8px}.jyoti-signin-icon{display:none}.jyoti-signin h2{font-size:27px}.jyoti-signin>p{margin-bottom:25px}.jyoti-login-footer{margin-top:30px}}
+@media(prefers-reduced-motion:reduce){.jyoti-login *{scroll-behavior:auto}}

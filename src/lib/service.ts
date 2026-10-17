@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js';
 import {paymentRowsSql,paymentSummary} from '@/rental/payments';
 import {validGstin} from '@/rental/gst';
 import { randomUUID } from 'node:crypto';
@@ -161,14 +162,14 @@ export async function saveCompany(input:unknown) {
  return transaction(async db=>{ await db.query(`UPDATE company SET name=$1,unit1=$2,unit2=$3,mobile=$4,email=$5,website=$6,gst_no=$7,bank_name=$8,bank_account=$9,bank_ifsc=$10,logo=$11,gst_percent=$12,terms=$13 WHERE id=1`,Object.values(d));await audit(db,'COMPANY_SAVE','1',d);return {ok:true}; });
 }
 export async function saveQuotation(input:unknown) {
- const d=z.object({customer_id:uuid,date,deposit:amount,terms:text,pdc_terms:text.default(''),lines:z.array(z.object({item_id:uuid,quantity:z.coerce.number().int().positive(),rate:amount})).min(1)}).parse(input);
+ const d=z.object({customer_id:uuid,date,deposit:amount,terms:text,pdc_terms:text.default(''),reference:z.string().trim().max(80).default(''),gst_percent:z.coerce.number().min(0).max(100).optional(),dispatch_days:z.coerce.number().int().min(0).max(365).default(7),required_documents:text.default(''),lines:z.array(z.object({item_id:uuid,quantity:z.coerce.number().int().positive(),rate:amount})).min(1)}).parse(input);
  return transaction(async db=> {
    const customer=(await db.query('SELECT * FROM customers WHERE id=$1',[d.customer_id])).rows[0];
    if(!customer) throw new Error('Customer not found.');
    const company=(await db.query('SELECT * FROM company WHERE id=1')).rows[0];
    const lines=[];
-   for(const l of d.lines) {const i=(await db.query('SELECT * FROM items WHERE id=$1',[l.item_id])).rows[0];if(!i) throw new Error('Item not found.');lines.push({...l,name:i.name,material_value:i.material_value,material_total:damageAmount(l.quantity,i.material_value),monthly_total:damageAmount(l.quantity*30,String(l.rate))});}
-   const id=randomUUID(),snapshot={...d,customer,company,lines,material_total:money(lines.reduce((s,l)=>s+Number(l.material_total),0)),monthly_total:money(lines.reduce((s,l)=>s+Number(l.monthly_total),0))};
+   for(const l of d.lines) {const i=(await db.query('SELECT * FROM items WHERE id=$1',[l.item_id])).rows[0];if(!i) throw new Error('Item not found.');lines.push({...l,name:i.name,weight:i.weight,weight_total:money(new Decimal(i.weight||0).mul(l.quantity)),daily_total:damageAmount(l.quantity,String(l.rate)),material_value:i.material_value,material_total:damageAmount(l.quantity,i.material_value),monthly_total:damageAmount(l.quantity*30,String(l.rate))});}
+   const id=randomUUID(),snapshot={...d,gst_percent:d.gst_percent??Number(company.gst_percent||0),customer,company,lines,material_total:money(lines.reduce((s,l)=>s+Number(l.material_total),0)),monthly_total:money(lines.reduce((s,l)=>s+Number(l.monthly_total),0))};
    await db.query('INSERT INTO quotations(id,customer_id,date,snapshot) VALUES($1,$2,$3,$4)',[id,d.customer_id,d.date,JSON.stringify(snapshot)]);return {id};
  });
 }

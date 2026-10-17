@@ -199,7 +199,7 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
    <div>{p.before} at site <ArrowRight size={16}/><b>{p.after} after {isReturn?'return':'dispatch'}</b></div>
    {p.rental_rate!=null&&<small>Agreed rental rate: {currency(p.rental_rate)} per piece per day.</small>}
    {p.lock_until&&<small>This batch is locked until {displayDate(p.lock_until)}.</small>}
-   {p.deferred.map((a:RecordData)=><small className="amber-text" key={a.lot_id}>{a.quantity} returned units stay billable until {displayDate(a.billing_date)} at their original dispatch rate.</small>)}
+   {p.deferred.map((a:RecordData)=><small className="amber-text" key={a.lot_id}>{a.quantity} returned units stop billing from {displayDate(a.billing_date)} (return day included) at their original dispatch rate.</small>)}
    {Number(p.damage_total)>0&&<small className="amber-text">Damage charge to invoice: {currency(p.damage_total)}</small>}
   </div>)}
   <Field label="Note / challan reference"><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Optional reference or transport details"/></Field>

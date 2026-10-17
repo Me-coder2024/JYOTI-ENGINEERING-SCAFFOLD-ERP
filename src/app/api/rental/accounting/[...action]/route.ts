@@ -1,3 +1,4 @@
+import {movementExport} from '@/rental/movement-export';
 import {pool} from '@/lib/db';
 import {voucherPdf} from '@/rental/print-documents';
 import {z} from 'zod';
@@ -13,6 +14,10 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{action:strin
  try{
   await requireApi(req,'rental');
   const path=(await params).action;
+  if(path[0]==='movement-export'){
+   const out=await movementExport(req.nextUrl.searchParams);
+   return new Response(new Uint8Array(out.bytes),{headers:{'Content-Type':out.type,'Content-Disposition':(out.extension==='pdf'?'inline':'attachment')+'; filename="movement-history.'+out.extension+'"','Cache-Control':'private, no-store'}});
+  }
   if(path[0]==='formats')return Response.json(await loadFormats(),{headers:{'Cache-Control':'private, no-store'}});
   if(path[0]==='party-ledger'){
    const out=await partyExport(req.nextUrl.searchParams);

@@ -14,8 +14,8 @@ test('same item with different dispatch rates stays in separate price groups',()
 });
 test('FIFO return reduces the oldest agreed-rate group, never the newest price',()=>{
  const rows=price([d('1','2026-06-01',10,'2'),d('2','2026-06-02',20,'3'),r('3','2026-06-05',15)]);
- assert.equal(totals(rows.map(x=>x.amount!),[],'0').grand_total,'530.00');
- assert.equal(rows.find(x=>x.start==='2026-06-05')?.quantity,15);
+ assert.equal(totals(rows.map(x=>x.amount!),[],'0').grand_total,'565.00');
+ assert.equal(rows.find(x=>x.start==='2026-06-06')?.quantity,15);
 });
 test('early return bills each lot at its agreed rate until its own lock',()=>{
  const rows=price([d('1','2026-06-01',10,'2','2026-06-06'),d('2','2026-06-02',20,'3','2026-06-09'),r('3','2026-06-03',15)]);
