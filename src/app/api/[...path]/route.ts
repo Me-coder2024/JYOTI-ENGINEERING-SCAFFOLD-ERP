@@ -6,6 +6,7 @@ import { authenticated, createSession, validPassword } from '@/lib/auth';
 import * as service from '@/lib/service';
 import { pool } from '@/lib/db';
 import { makePdf, makeExcel } from '@/lib/documents';
+import {invoiceExcel} from '@/rental/invoice-reference';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 const attempts=new Map<string,{count:number,until:number}>();
@@ -19,7 +20,8 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{path:string[
    if(!invoice) return NextResponse.json({error:'Invoice not found.'},{status:404});
    invoice.payments=(await pool.query('SELECT * FROM ('+paymentRowsSql+') p WHERE invoice_id=$1 ORDER BY date,voucher_no',[invoice.id])).rows;
    Object.assign(invoice,paymentSummary(invoice.grand_total,invoice.payments));
-   if(path[2]==='pdf') return new Response(new Uint8Array(await makePdf(invoice)),{headers:{'Content-Type':'application/pdf','Content-Disposition':`attachment; filename="${invoice.invoice_no.replaceAll('/','-')}.pdf"`}});
+   if(path[2]==='pdf') return new Response(new Uint8Array(await makePdf(invoice)),{headers:{'Content-Type':'application/pdf','Content-Disposition':`${req.nextUrl.searchParams.get('preview')==='1'?'inline':'attachment'}; filename="${invoice.invoice_no.replaceAll('/','-')}.pdf"`,'Cache-Control':'private, no-store'}});
+   if(path[2]==='xlsx')return new Response(await invoiceExcel(invoice),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="${invoice.invoice_no.replaceAll('/','-')}.xlsx"`,'Cache-Control':'private, no-store'}});
    return NextResponse.json(invoice);
   }
   if(path[0]==='quotations'&&path[1]) {

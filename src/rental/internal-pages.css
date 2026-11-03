@@ -1,0 +1,37 @@
+/* Internal work screens only; gateway/dashboard layout is intentionally excluded. */
+.erp-wrapper .rental-internal .page-heading{align-items:flex-start;gap:20px;margin-bottom:24px;flex-wrap:wrap}
+.erp-wrapper .rental-internal .heading-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.erp-wrapper .rental-internal .panel{min-width:0;overflow:hidden;margin-bottom:20px}
+.erp-wrapper .rental-internal .toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:18px 20px;border-bottom:1px solid #e1e8f1}
+.erp-wrapper .rental-internal .toolbar .search{flex:1;max-width:560px;min-width:220px}
+.erp-wrapper .rental-internal table{width:100%;border-collapse:collapse}
+.erp-wrapper .rental-internal :is(th,td){padding:15px 18px;vertical-align:top;line-height:1.55}
+.erp-wrapper .rental-internal td small{display:block;margin-top:5px;overflow-wrap:anywhere}
+.erp-wrapper .rental-internal .customer-alias{color:#365f88;font-weight:600}
+.erp-wrapper .rental-internal .row-actions{display:flex;gap:12px;align-items:center;white-space:nowrap}
+.erp-wrapper .report-filters,.erp-wrapper .rental-internal .ledger-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px;align-items:end;padding:20px;margin:0;border-bottom:1px solid #dce5ef;background:#f8fafd}
+.erp-wrapper .report-filters .field,.erp-wrapper .rental-internal .ledger-controls>label{display:flex;flex-direction:column;gap:8px;min-width:0;margin:0;font-size:13px;color:#44627f;font-weight:500}
+.erp-wrapper .report-filters :is(input,select),.erp-wrapper .rental-internal .ledger-controls :is(input,select){width:100%;min-width:0;min-height:42px;padding:10px 12px;border:1px solid #cddbeb;border-radius:6px;background:white;color:#284d70;font:inherit}
+.erp-wrapper .report-filter-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;border-top:1px solid #e1e8f1;padding-top:16px}
+.erp-wrapper .material-export-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.erp-wrapper .report-filter-actions a,.erp-wrapper .material-export-actions a{white-space:nowrap;min-height:42px}
+.erp-wrapper .rental-internal .material-ledger-help{margin:18px 0;line-height:1.7}
+.erp-wrapper .a-app .a-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px;align-items:end;padding:20px;background:#fff;border:1px solid #dce5ef;border-radius:10px;margin:0 0 20px}
+.erp-wrapper .a-app .a-filters .m-field{min-width:0;margin:0}
+.erp-wrapper .a-app .m-row-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.erp-wrapper .a-app .m-heading{align-items:flex-start;gap:20px;flex-wrap:wrap}
+.erp-wrapper .a-app .m-heading>.m-row-actions{max-width:100%;justify-content:flex-start}
+.erp-wrapper .a-app .m-panel{min-width:0}
+.erp-wrapper .a-app .m-table{overflow-x:auto}
+.erp-wrapper .a-app .m-table :is(th,td){padding:14px 18px;vertical-align:top;line-height:1.55}
+.erp-wrapper :is(.modal,.m-dialog) .form-footer{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:24px;padding-top:20px}
+.erp-wrapper :is(.modal,.m-dialog) .form-grid{gap:18px;align-items:start}
+@media(max-width:700px){
+ .erp-wrapper .report-filters,.erp-wrapper .rental-internal .ledger-controls,.erp-wrapper .a-app .a-filters{grid-template-columns:1fr;gap:14px;padding:16px}
+ .erp-wrapper .rental-internal .toolbar{padding:16px;gap:12px}
+ .erp-wrapper .rental-internal .toolbar .search{min-width:0;max-width:none;flex-basis:100%;width:100%}
+ .erp-wrapper .rental-internal .heading-actions{width:100%}
+ .erp-wrapper .report-filter-actions{justify-content:flex-start}
+ .erp-wrapper .a-app .m-row-actions{width:100%}
+ .erp-wrapper .rental-internal :is(th,td){padding:12px}
+}

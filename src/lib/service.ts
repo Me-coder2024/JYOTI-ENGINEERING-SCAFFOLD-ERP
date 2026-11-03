@@ -13,7 +13,7 @@ const amount = z.coerce.number().min(0).max(999999999);
 const uuid = z.string().uuid();
 const customerSchema = z.object({ id: uuid.optional(), name: text.min(1), address: text.default(''), gst_no: text.transform(v=>v.trim().toUpperCase()).refine(v=>!v||validGstin(v),'Enter a valid GSTIN including its check digit.').default(''), state_code: text.default('24'), contact_person: text.default(''), mobile: text.default(''), email: z.union([z.email(),z.literal('')]).default(''), locking_days: z.coerce.number().int().min(0).max(3650), deposit: amount.default(0), mailing_name: text.max(2000).optional(), country: text.max(2000).optional(), place_of_supply: text.max(2000).optional(), gst_registration: z.enum(['Unknown','Regular','Composition','Unregistered/Consumer']).optional() });
 const itemSchema = z.object({ id: uuid.optional(), name: text.min(1), hsn: text.default('995457'), category: text.default('Scaffolding'), material_value: amount, weight: amount.default(0), active: z.boolean().default(true), rate: amount.optional(), effective_from: date.optional() });
-const movementSchema = z.object({ customer_id: uuid, date, type: z.enum(['DISPATCH','RETURN']), note: text.default(''), reference: text.max(80).default(''), lines: z.array(z.object({ item_id: uuid, quantity: z.coerce.number().int().positive().max(10000000), rental_rate: z.number().min(0).max(99999999).refine(v=>Math.abs(v*10000-Math.round(v*10000))<0.00001,'Use up to four decimal places.').optional(), damaged_quantity: z.coerce.number().int().min(0).default(0) })).min(1).max(100) });
+const movementSchema = z.object({ customer_id: uuid, date, type: z.enum(['DISPATCH','RETURN']), note: text.default(''), reference: text.max(80).default(''), vehicle_no: text.max(40).default(''), lines: z.array(z.object({ item_id: uuid, quantity: z.coerce.number().int().positive().max(10000000), rental_rate: z.number().min(0).max(99999999).refine(v=>Math.abs(v*10000-Math.round(v*10000))<0.00001,'Use up to four decimal places.').optional(), damaged_quantity: z.coerce.number().int().min(0).default(0) })).min(1).max(100) });
 async function audit(db: PoolClient, action: string, id: string, details: unknown) { await db.query('INSERT INTO audit_log(action,entity_id,details) VALUES($1,$2,$3)',[action,id,JSON.stringify(details)]); }
 export async function state() {
  const results = await Promise.all([
@@ -64,6 +64,8 @@ export async function saveMovement(input: unknown, preview=false) {
    const c=(await db.query('SELECT * FROM customers WHERE id=$1' + (preview ? '' : ' FOR UPDATE'),[d.customer_id])).rows[0];
    if(!c) throw new Error('Customer not found.');
    await checkFinal(db,c.id,d.date);
+   const challanId=randomUUID();
+   const reference=d.reference || (preview?'Assigned on save':`${d.type==='DISPATCH'?'DC':'RC'}-${(await db.query("SELECT nextval('rental_challan_number_seq') AS n")).rows[0].n}`);
    const previews=[];
    for(const line of d.lines) {
      const item=(await db.query('SELECT * FROM items WHERE id=$1',[line.item_id])).rows[0];
@@ -83,13 +85,13 @@ export async function saveMovement(input: unknown, preview=false) {
      const deferred=built.allocations.filter(a=>a.return_id===id && a.billing_date>d.date);
      previews.push({item_id:item.id,name:item.name,before:balanceAt(old.physical,d.date),after:balanceAt(built.physical,d.date),lock_until:m.lock_until,rental_rate:rentalRate,deferred,damage_total:damageAmount(line.damaged_quantity,item.material_value)});
      if(preview) continue;
-     await db.query(`INSERT INTO movements(id,customer_id,item_id,date,type,quantity,lock_until,damaged_quantity,damage_price,note,rental_rate,reference) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,[id,c.id,item.id,m.date,m.type,m.quantity,m.lock_until,line.damaged_quantity,item.material_value,d.note,rentalRate,d.reference]);
+     await db.query(`INSERT INTO movements(id,customer_id,item_id,date,type,quantity,lock_until,damaged_quantity,damage_price,note,rental_rate,reference,challan_id,vehicle_no) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,[id,c.id,item.id,m.date,m.type,m.quantity,m.lock_until,line.damaged_quantity,item.material_value,d.note,rentalRate,reference,challanId,d.vehicle_no]);
      if(m.type==='DISPATCH') await db.query('INSERT INTO dispatch_lots(id,customer_id,item_id,original_quantity,dispatch_date,lock_until) VALUES($1,$2,$3,$4,$5,$6)',[id,c.id,item.id,m.quantity,m.date,m.lock_until]);
      await db.query('DELETE FROM return_allocations WHERE return_id IN (SELECT id FROM movements WHERE customer_id=$1 AND item_id=$2)',[c.id,item.id]);
      for(const a of built.allocations) await db.query('INSERT INTO return_allocations(return_id,lot_id,quantity,return_date,billing_date) VALUES($1,$2,$3,$4,$5)',[a.return_id,a.lot_id,a.quantity,a.return_date,a.billing_date]);
      await audit(db,'MOVEMENT_CREATE',id,{...m,customer_id:c.id});
    }
-   return {previews};
+   return {previews,reference,challan_id:challanId};
  }, preview);
 }
 const invoiceSchema=z.object({customer_id:uuid,period_start:date,period_end:date,gst_percent:z.coerce.number().min(0).max(100),notes:text.default(''),document_details:z.object({ship_to:text.max(2000).default(''),delivery_note:text.max(200).default(''),delivery_date:z.union([date,z.literal('')]).default(''),payment_terms:text.max(200).default(''),reference:text.max(200).default(''),dispatch_document:text.max(200).default(''),dispatched_through:text.max(200).default(''),destination:text.max(200).default(''),lr_number:text.max(200).default(''),vehicle_no:text.max(200).default(''),delivery_terms:text.max(1000).default(''),place_of_supply:text.max(200).default(''),tax_mode:z.enum(['GST','CGST_SGST','IGST']).default('GST')}).optional()});

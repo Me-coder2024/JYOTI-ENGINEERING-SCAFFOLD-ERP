@@ -1,4 +1,5 @@
 'use client';
+import {customerLabel} from '@/rental/customer-identity';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, Plus, X } from 'lucide-react';
 
@@ -20,10 +21,11 @@ async function previewMovement(payload:unknown) {
 /* ── Draft persistence helpers ── */
 export const DRAFT_KEY_PREFIX='je_movement_draft_';
 export function draftKey(type:string){return DRAFT_KEY_PREFIX+type;}
-export interface DraftState{customer:string;date:string;lines:EntryLine[];note:string;reference:string;savedAt:number;}
+export interface DraftState{customer:string;date:string;lines:EntryLine[];note:string;reference:string;vehicle?:string;savedAt:number;}
 
-export function hasDraftContent(state?:{customer?:string;reference?:string;note?:string;lines?:EntryLine[]}):boolean {
+export function hasDraftContent(state?:{customer?:string;reference?:string;note?:string;vehicle?:string;lines?:EntryLine[]}):boolean {
  if(!state) return false;
+ if(state.vehicle?.trim()) return true;
  if(state.customer&&state.customer.trim()!=='') return true;
  if(state.reference&&state.reference.trim()!=='') return true;
  if(state.note&&state.note.trim()!=='') return true;
@@ -65,7 +67,7 @@ export function clearMovementDraft(type:string){
  }catch{}
 }
 
-export default function MovementForm({data,initial,busy,onSave}:{data:RecordData;initial:RecordData;busy:boolean;onSave:(value:RecordData)=>Promise<boolean>}) {
+export default function MovementForm({data,initial,busy,onSave,renderCreate}:{data:RecordData;initial:RecordData;busy:boolean;onSave:(value:RecordData)=>Promise<boolean>;renderCreate?:(kind:string,done:(id:string)=>void)=>ReactNode}) {
  const isReturn=initial.type==='RETURN';
 
  // ── Restore draft on mount ──
@@ -78,6 +80,8 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
  const [lines,setLines]=useState<EntryLine[]>(restored?.lines?.length?restored.lines:[emptyLine()]);
  const [note,setNote]=useState(restored?.note||'');
  const [reference,setReference]=useState(restored?.reference||'');
+ const [vehicle,setVehicle]=useState(restored?.vehicle||'');
+ const [creating,setCreating]=useState('');
  const [preview,setPreview]=useState<RecordData|null>(null);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(false);
@@ -86,14 +90,14 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
  const [showDraftNotice,setShowDraftNotice]=useState(hasDraft);
 
  const savedSuccessfullyRef=useRef(false);
- const latestStateRef=useRef({customer,date,lines,note,reference});
- latestStateRef.current={customer,date,lines,note,reference};
+ const latestStateRef=useRef({customer,date,lines,note,reference,vehicle});
+ latestStateRef.current={customer,date,lines,note,reference,vehicle};
 
  // ── Auto-save draft on every change ──
  useEffect(()=>{
   if(savedSuccessfullyRef.current) return;
-  saveDraft(initial.type,{customer,date,lines,note,reference});
- },[initial.type,customer,date,lines,note,reference]);
+  saveDraft(initial.type,{customer,date,lines,note,reference,vehicle});
+ },[initial.type,customer,date,lines,note,reference,vehicle]);
 
  // ── Flush latest state on unmount if user navigated or clicked away ──
  useEffect(()=>{
@@ -111,7 +115,8 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
   const rate=data.rates.filter((r:RecordData)=>r.item_id===itemId&&r.effective_from<=onDate).at(-1)?.rate;
   return rate==null?'':String(Number(rate));
  }
- const payload={customer_id:customer,date,type:initial.type,note,reference,lines:lines.map(l=>({
+ useEffect(()=>{setLines(current=>current.map(l=>l.item_id&&l.rental_rate===''&&!l.custom_rate?{...l,rental_rate:standardRate(l.item_id)}:l));},[data.rates]);
+ const payload={customer_id:customer,date,type:initial.type,note,reference,vehicle_no:vehicle,lines:lines.map(l=>({
   item_id:l.item_id,quantity:l.quantity,damaged_quantity:l.damaged_quantity,
   ...(!isReturn&&l.rental_rate!==''?{rental_rate:Number(l.rental_rate)}:{})
  }))};
@@ -149,7 +154,7 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
   setDate(data.today);
   setLines([emptyLine()]);
   setNote('');
-  setReference('');
+  setReference('');setVehicle('');
   setShowDraftNotice(false);
  }
  async function handleSave(){
@@ -160,21 +165,22 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
     if(saved)clearMovementDraft(initial.type);
     else{
      savedSuccessfullyRef.current=false;
-     saveDraft(initial.type,{customer,date,lines,note,reference});
+     saveDraft(initial.type,{customer,date,lines,note,reference,vehicle});
     }
    }catch{
     savedSuccessfullyRef.current=false;
-    saveDraft(initial.type,{customer,date,lines,note,reference});
+    saveDraft(initial.type,{customer,date,lines,note,reference,vehicle});
    }
   }
  }
- return <form onSubmit={e=>{e.preventDefault();handleSave();}}>
+ return <>{creating&&renderCreate&&<section className="form-section"><h3>Create {creating}</h3><button type="button" className="secondary" onClick={()=>setCreating('')}>Back to dispatch</button>{renderCreate(creating,id=>{if(creating==='customer')setCustomer(id);else setLines(current=>{const blank=current.findIndex(l=>!l.item_id);return blank>=0?current.map((l,i)=>i===blank?{...l,item_id:id,rental_rate:standardRate(id)}:l):[...current,{...emptyLine(),item_id:id,rental_rate:standardRate(id)}];});setCreating('');})}</section>}<form style={{display:creating?'none':undefined}} onSubmit={e=>{e.preventDefault();handleSave();}}>
   {showDraftNotice&&<div className="alert success" role="status" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'0.75rem'}}><span>📝 Restored your unsaved {isReturn?'return':'dispatch'} draft.</span><button type="button" className="text-button" onClick={discardDraft} style={{whiteSpace:'nowrap'}}>Discard draft</button></div>}
-  <Field label="Delivery / return reference"><input maxLength={80} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Challan or receipt number"/></Field>
+  <Field label="Delivery / return reference"><input maxLength={80} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Leave blank to generate a challan number"/></Field><Field label="Vehicle number (optional)"><input maxLength={40} value={vehicle} onChange={e=>setVehicle(e.target.value)}/></Field>
   <div className="form-grid">
-   <Field label="Customer"><select required value={customer} onChange={e=>setCustomer(e.target.value)}><option value="">Select customer</option>{data.customers.map((c:RecordData)=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
+   <Field label="Customer"><select required value={customer} onChange={e=>setCustomer(e.target.value)}><option value="">Select customer</option>{data.customers.map((c:RecordData)=><option key={c.id} value={c.id}>{customerLabel(c)}</option>)}</select></Field>
    <Field label={isReturn?'Return date':'Dispatch / delivery date'}><input type="date" required max={data.today} value={date} onChange={e=>changeDate(e.target.value)}/></Field>
   </div>
+  {!isReturn&&renderCreate&&<div className="form-footer"><button type="button" className="secondary" onClick={()=>setCreating('customer')}>+ New customer</button><button type="button" className="secondary" onClick={()=>setCreating('item')}>+ New item</button></div>}
   <div className="form-section">
    <h3>{isReturn?'Material coming back':'Material leaving the yard'}</h3>
    <p>{isReturn?'Returned quantity includes damaged pieces. Rental charges use each original dispatch\'s saved rate.':'The standard rate for the delivery date fills automatically. Change it for this customer\'s dispatch; other customers and existing dispatches keep their own rates.'}</p>
@@ -204,5 +210,5 @@ export default function MovementForm({data,initial,busy,onSave}:{data:RecordData
   </div>)}
   <Field label="Note / challan reference"><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Optional reference or transport details"/></Field>
   <div className="form-footer"><span>{isReturn?'Returns are allocated to the oldest open batches.':'The agreed rate is saved with this dispatch.'}</span><button className="primary" disabled={busy||loading||!preview||preview.payloadKey!==payloadKey}>{busy?'Saving…':isReturn?'Save return':'Save dispatch'}</button></div>
- </form>;
+ </form></>;
 }

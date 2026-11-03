@@ -28,6 +28,16 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
   assert.equal((await pool.query('SELECT count(*) FROM movements')).rows[0].count,'3');
  } finally {clearTimeout(deadline);await blocker.query('ROLLBACK');blocker.release();}
  console.log('PASS: movement preview bypasses write contention without changing stock.');
+ const newParty=await s.saveCustomer({name:'New challan customer',locking_days:0});
+ const otherItem=await s.saveItem({name:'New challan material',material_value:100,rate:1,effective_from:'2026-01-01'});
+ const batch=await s.saveMovement({customer_id:newParty.id,date:'2026-01-01',type:'DISPATCH',vehicle_no:'GJ01AB1234',lines:[{item_id:item.id,quantity:2},{item_id:otherItem.id,quantity:3}]});
+ assert.match(batch.reference,/^DC-/);
+ const batchRows=(await pool.query('SELECT * FROM movements WHERE challan_id=$1',[batch.challan_id])).rows;
+ assert.equal(batchRows.length,2);assert.ok(batchRows.every(r=>r.customer_id===newParty.id&&r.reference===batch.reference&&r.vehicle_no==='GJ01AB1234'));
+ const {challanExport}=await import('../src/rental/challan-export');assert.ok((await challanExport(batchRows[0].id)).bytes.length>1000);
+ const {movementExport:filteredExport}=await import('../src/rental/movement-export');const filtered=await filteredExport(new URLSearchParams({start:'2026-01-01',end:'2026-01-02',format:'xlsx',customer:newParty.id,challan:batch.reference}));assert.ok(filtered.bytes.length>1000);
+ console.log('PASS: customer-linked multi-item challan, optional vehicle, generated number and filtered exports.');
+
  const {correctMovement}=await import('../src/rental/movement-corrections');
  const correctionCustomer=await s.saveCustomer({name:'Correction test',locking_days:10});
  await s.saveMovement({customer_id:correctionCustomer.id,date:'2026-02-01',type:'DISPATCH',lines:[{item_id:item.id,quantity:10,rental_rate:2}]});
@@ -49,7 +59,7 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  assert.equal((await pool.query('SELECT count(*) FROM rental_movement_revisions')).rows[0].count,'4');
  await assert.rejects(pool.query('DELETE FROM rental_movement_revisions'),/immutable/);
  console.log('PASS: owner-only movement correction, stale edit rejection, dependent-return protection, allocation rebuild and immutable deletion history.');
- const movements=(await pool.query('SELECT * FROM movements')).rows;const group=materialGroups([{id:item.id,name:'Pipe'}],movements,'2026-01-02','2026-01-03')[0];assert.equal(group.opening,174);assert.equal(group.received,156);assert.equal(group.pending,18);
+ const movements=(await pool.query('SELECT * FROM movements WHERE customer_id=$1',[customer.id])).rows;const group=materialGroups([{id:item.id,name:'Pipe'}],movements,'2026-01-02','2026-01-03')[0];assert.equal(group.opening,174);assert.equal(group.received,156);assert.equal(group.pending,18);
  await mkdir('test-results/rental-shift',{recursive:true});for(const format of ['pdf','xlsx']){const out=await materialExport(new URLSearchParams({customer:customer.id,start:'2026-01-01',end:'2026-01-31',format}));await writeFile('test-results/rental-shift/material-ledger.'+format,new Uint8Array(out.bytes));if(format==='xlsx'){const b=new ExcelJS.Workbook();await b.xlsx.load(Buffer.from(out.bytes) as any);const text=JSON.stringify(b.getWorksheet(1)!.getSheetValues());assert.ok(text.includes('Issu Qty'));assert.ok(!/Original price|damage_price|rental_rate/.test(text));}}
  const {movementExport}=await import('../src/rental/movement-export');
  for(const format of ['pdf','xlsx']){
@@ -104,6 +114,15 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  }
  console.log('PASS: party ledger matches posted balances, PDF/Excel exports share format settings, and finalized movements remain locked.');
  console.log('PASS: automatic receipt/payment double entry, partial/full/split allocations, reversal recalculation and concurrent retry idempotency.');
+ const {cancelVoucher}=await import('../src/rental/cancel-voucher');
+ const cancelOriginal=(await pool.query("SELECT * FROM rental_acc_vouchers v WHERE reverses_id IS NULL AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id) ORDER BY created_at LIMIT 1")).rows[0];
+ const cancellation={id:cancelOriginal.id,submission_id:randomUUID(),date:new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}),reason:'Test cancellation'};
+ await assert.rejects(cancelVoucher({...owner,role:'RENTAL_STAFF'},cancellation),/Only the owner/);
+ await cancelVoucher(owner,cancellation);await cancelVoucher(owner,cancellation);
+ assert.equal((await pool.query('SELECT count(*) FROM rental_acc_vouchers WHERE reverses_id=$1',[cancelOriginal.id])).rows[0].count,'1');
+ await assert.rejects(cancelVoucher(owner,{...cancellation,submission_id:randomUUID()}),/already been reversed/);
+ console.log('PASS: owner-only cancellation and duplicate retry protection.');
+
  if(process.argv.includes('--http')){
  const auth=await import('../src/shared/auth-server');await pool.query('UPDATE erp_users SET password_hash=$1 WHERE id=$2',[await auth.passwordHash('OnlyForLocalTest123'),owner.id]);
  server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','3012'],{env:{...process.env,GST_LOOKUP_DISABLED:'1',SESSION_SECRET:'isolated-local-test-secret-at-least-32-characters'},stdio:'ignore',windowsHide:true});
@@ -113,6 +132,9 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/party-ledger')).status,401);
 
  const login=await fetch(baseUrl+'/api/shared/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:baseUrl},body:JSON.stringify({login:'owner',password:'OnlyForLocalTest123'})});assert.equal(login.status,200);const cookie=login.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');const headers={Cookie:cookie};
+ const invoiceXlsx=await fetch(baseUrl+'/api/invoices/'+invoice.id+'/xlsx',{headers});assert.equal(invoiceXlsx.status,200);assert.ok(invoiceXlsx.headers.get('content-type')?.includes('spreadsheetml'));const exported=new ExcelJS.Workbook();await exported.xlsx.load(Buffer.from(await invoiceXlsx.arrayBuffer()) as any);assert.ok(exported.getWorksheet('Payment history'));
+ assert.equal((await fetch(baseUrl+'/api/rental/accounting/challan/'+batchRows[0].id,{headers})).status,200);
+ assert.equal((await fetch(baseUrl+'/api/rental/accounting/challan/'+batchRows[0].id)).status,401);
  assert.equal((await fetch(baseUrl+'/rental/accounting',{headers})).status,200);assert.equal((await fetch(baseUrl+'/api/manufacturing/state',{headers})).status,410);assert.equal((await fetch(baseUrl+'/manufacturing',{headers,redirect:'manual'})).headers.get('location'),'/rental');
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/state',{headers})).status,200);assert.equal((await fetch(baseUrl+'/api/rental/gst?gstin='+gst,{headers})).status,503);
  const voucherPdf=await fetch(baseUrl+'/api/rental/accounting/vouchers/'+receipt.id+'/pdf',{headers});assert.equal(voucherPdf.status,200);assert.equal(voucherPdf.headers.get('content-type'),'application/pdf');assert.equal((await fetch(baseUrl+'/api/rental/accounting/vouchers/'+receipt.id+'/pdf')).status,401);
@@ -121,6 +143,7 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/movements',{method:'POST',headers:{Cookie:staffCookie,'Content-Type':'application/json',Origin:baseUrl},body:JSON.stringify({})})).status,403);
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/formats',{method:'POST',headers:{Cookie:staffCookie,'Content-Type':'application/json',Origin:baseUrl},body:JSON.stringify({})})).status,403);
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/movement-history',{headers:{Cookie:staffCookie}})).status,403);
+ assert.equal((await fetch(baseUrl+'/api/rental/accounting/cancel-voucher',{method:'POST',headers:{Cookie:staffCookie,'Content-Type':'application/json',Origin:baseUrl},body:JSON.stringify(cancellation)})).status,403);
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/movement-history',{headers})).status,200);
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/party-ledger?'+new URLSearchParams({ledger:ledger.id,start:'1900-01-01',end:today,format:'pdf'}),{headers})).status,200);
  console.log('PASS: HTTP authentication, rental staff accounting, owner-only access, manufacturing retirement, GST not-configured response and PDF download.');

@@ -8,12 +8,15 @@ import * as accounting from '@/rental/accounting';
 import {correctMovement} from '@/rental/movement-corrections';
 import {loadFormats,saveFormat} from '@/rental/ledger-format-service';
 import {partyExport} from '@/rental/party-export';
+import {cancelVoucher} from '@/rental/cancel-voucher';
+import {challanExport} from '@/rental/challan-export';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export async function GET(req:NextRequest,{params}:{params:Promise<{action:string[]}>}){
  try{
   await requireApi(req,'rental');
   const path=(await params).action;
+  if(path[0]==='challan'&&path[1]){const out=await challanExport(path[1]);return new Response(new Uint8Array(out.bytes),{headers:{'Content-Type':out.type,'Content-Disposition':'inline; filename="challan.pdf"','Cache-Control':'private, no-store'}});}
   if(path[0]==='movement-export'){
    const out=await movementExport(req.nextUrl.searchParams);
    return new Response(new Uint8Array(out.bytes),{headers:{'Content-Type':out.type,'Content-Disposition':(out.extension==='pdf'?'inline':'attachment')+'; filename="movement-history.'+out.extension+'"','Cache-Control':'private, no-store'}});
@@ -45,6 +48,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{action:stri
   if(['movements','formats'].includes(path[0]))await requireApi(req,'owner');
   const data=await req.json();let result;
   switch(path[0]){
+   case 'cancel-voucher':result=await cancelVoucher(user,data);break;
    case 'movements':result=await correctMovement(user,data);break;
    case 'formats':result=await saveFormat(user,data);break;
    case 'ledgers':result=await accounting.saveLedger(user,data);break;

@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {transaction} from '@/lib/db';
-import {timelines,addDays,daysBetween,today,day,type Movement} from '@/lib/engine';
+import {timelines,addDays,daysBetween,today,day,MovementValidationError,type Movement} from '@/lib/engine';
 import {AccessError,type User} from '@/shared/access';
 const schema=z.object({
  id:z.string().uuid(),revision:z.number().int().nonnegative(),action:z.enum(['EDIT','DELETE']),
@@ -9,7 +9,7 @@ const schema=z.object({
  quantity:z.coerce.number().int().positive().max(10000000).optional(),
  damaged_quantity:z.coerce.number().int().nonnegative().optional(),
  rental_rate:z.coerce.number().min(0).max(99999999).refine(n=>Math.abs(n*10000-Math.round(n*10000))<0.00001).nullable().optional(),
- reference:z.string().trim().max(80).optional(),note:z.string().trim().max(10000).optional()
+ vehicle_no:z.string().trim().max(40).optional(),reference:z.string().trim().max(80).optional(),note:z.string().trim().max(10000).optional()
 });
 export async function correctMovement(user:User,input:unknown){
  if(user.role!=='OWNER')throw new AccessError('Only the owner may edit or delete past movements.',403);
@@ -25,7 +25,7 @@ export async function correctMovement(user:User,input:unknown){
    if(d.date>today())throw new AccessError('Future stock movements are not allowed.');
    if(d.damaged_quantity>d.quantity||(old.type==='DISPATCH'&&d.damaged_quantity))throw new AccessError('Damaged quantity must be part of a return.');
    if(d.damaged_quantity&&Number(old.damage_price)<=0)throw new AccessError('This entry has no saved damage price. Review the item before recording damage.');
-   next={...old,date:d.date,quantity:d.quantity,damaged_quantity:d.damaged_quantity,reference:d.reference??old.reference,note:d.note??old.note,revision:old.revision+1};
+   next={...old,vehicle_no:d.vehicle_no??old.vehicle_no,date:d.date,quantity:d.quantity,damaged_quantity:d.damaged_quantity,reference:d.reference??old.reference,note:d.note??old.note,revision:old.revision+1};
    if(old.type==='DISPATCH'){
     next.rental_rate=d.rental_rate===undefined?old.rental_rate:d.rental_rate;
     next.lock_until=addDays(d.date,daysBetween(old.date,old.lock_until));
@@ -37,10 +37,16 @@ export async function correctMovement(user:User,input:unknown){
   const rows=(await db.query('SELECT * FROM movements WHERE customer_id=$1 AND item_id=$2 ORDER BY date,created_at,id',[old.customer_id,old.item_id])).rows;
   const revised=rows.filter(r=>r.id!==old.id);
   if(next)revised.push(next);
-  const built=timelines(revised.map(r=>({...r,created_at:r.created_at.toISOString()})) as Movement[]);
+  let built:ReturnType<typeof timelines>;
+  try{
+   built=timelines(revised.map(r=>({...r,created_at:r.created_at.toISOString()})) as Movement[]);
+  }catch(error){
+   if(error instanceof MovementValidationError)throw new AccessError('This correction would leave an invalid return: '+error.message+' Review this entry and any later returns before saving.',409);
+   throw error;
+  }
   await db.query('DELETE FROM return_allocations WHERE return_id IN (SELECT id FROM movements WHERE customer_id=$1 AND item_id=$2)',[old.customer_id,old.item_id]);
   if(next){
-   await db.query('UPDATE movements SET date=$2,quantity=$3,damaged_quantity=$4,rental_rate=$5,lock_until=$6,reference=$7,note=$8,revision=$9 WHERE id=$1',[old.id,next.date,next.quantity,next.damaged_quantity,next.rental_rate,next.lock_until,next.reference,next.note,next.revision]);
+   await db.query('UPDATE movements SET date=$2,quantity=$3,damaged_quantity=$4,rental_rate=$5,lock_until=$6,reference=$7,note=$8,revision=$9,vehicle_no=$10 WHERE id=$1',[old.id,next.date,next.quantity,next.damaged_quantity,next.rental_rate,next.lock_until,next.reference,next.note,next.revision,next.vehicle_no]);
    if(old.type==='DISPATCH')await db.query('UPDATE dispatch_lots SET original_quantity=$2,dispatch_date=$3,lock_until=$4 WHERE id=$1',[old.id,next.quantity,next.date,next.lock_until]);
   }else{
    await db.query('DELETE FROM dispatch_lots WHERE id=$1',[old.id]);

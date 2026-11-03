@@ -12,7 +12,7 @@ export default function MovementCorrection({record,data,busy,onSave}:{record:Row
  <label className="field"><span>Quantity</span><input name="quantity" type="number" required min="1" step="1" defaultValue={record.quantity}/></label>
  {record.type==='RETURN'?<label className="field"><span>Damaged quantity</span><input name="damaged_quantity" type="number" required min="0" step="1" defaultValue={record.damaged_quantity}/></label>:<label className="field"><span>Agreed daily rate</span><input name="rental_rate" type="number" min="0" step="0.0001" defaultValue={record.rental_rate??''}/><small>Blank preserves historical rate-card billing.</small></label>}
  <label className="field"><span>Reference</span><input name="reference" maxLength={80} defaultValue={record.reference}/></label>
- <label className="field"><span>Notes</span><textarea name="note" defaultValue={record.note}/></label></fieldset>
+ <label className="field"><span>Vehicle number (optional)</span><input name="vehicle_no" maxLength={40} defaultValue={record.vehicle_no||''}/></label><label className="field"><span>Notes</span><textarea name="note" defaultValue={record.note}/></label></fieldset>
  <label className="field"><span>Reason for correction</span><textarea name="reason" required minLength={3} maxLength={2000}/></label>
  {action==='DELETE'&&<label className="m-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>I confirm deleting this material line from active stock and billing. Its audit history will be retained.</label>}
  {error&&<p className="alert error">{error}</p>}<button className="primary" disabled={busy}>{busy?'Saving...':action==='DELETE'?'Delete with audit history':'Save correction'}</button>

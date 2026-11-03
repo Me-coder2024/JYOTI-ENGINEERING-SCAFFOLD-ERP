@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js';
 
 export type Day = string;
+export class MovementValidationError extends Error {}
 export type Movement = { id: string; item_id: string; date: Day; type: 'DISPATCH' | 'RETURN'; quantity: number; lock_until?: Day | null; rental_rate?: string | null; created_at?: string; damaged_quantity?: number; damage_price?: string; note?: string };
 export type Delta = { date: Day; qty: number };
 export type Rate = { effective_from: Day; rate: string };
@@ -33,7 +34,7 @@ export function timelines(movements: Movement[], asOf = today()) {
       physical.push({ date: m.date, qty: m.quantity }); billable.push({ date: m.date, qty: m.quantity });
     } else {
       const available = lots.reduce((s, l) => s + l.physical, 0);
-      if (m.quantity > available) throw new Error(`Cannot return ${m.quantity}, only ${available} currently on hire on ${m.date}.`);
+      if (m.quantity > available) throw new MovementValidationError(`Cannot return ${m.quantity}, only ${available} currently on hire on ${m.date}.`);
       physical.push({ date: m.date, qty: -m.quantity });
       let remaining = m.quantity;
       for (const lot of lots) {

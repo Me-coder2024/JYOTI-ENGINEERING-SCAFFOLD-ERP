@@ -1,5 +1,5 @@
 import {quotationPdf} from '@/rental/quotation-pdf';
-import {invoicePdf} from '@/rental/print-documents';
+import {referenceInvoicePdf} from '@/rental/invoice-reference';
 import {materialExport} from '@/rental/material-export';
 import Decimal from 'decimal.js';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
@@ -8,7 +8,7 @@ import { pool } from './db';
 import { balanceAt, timelines, today } from './engine';
 type Obj = Record<string, any>;
 export async function makePdf(record:Obj,quotation=false) {
- return quotation?quotationPdf(record):invoicePdf(record);
+ return quotation?quotationPdf(record):referenceInvoicePdf(record);
 }
 export async function makeExcel(kind:string,customerId?:string) {
  const book=new ExcelJS.Workbook(),sheet=book.addWorksheet(kind==='ledger'?'Customer ledger':'Invoices');
