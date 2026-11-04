@@ -1,14 +1,15 @@
 'use client';
 import '@/rental/internal-pages.css';
+import dynamic from 'next/dynamic';
 import {customerLabel,customerSearchText} from '@/rental/customer-identity';
 import {quotationDocuments,quotationTerms} from '@/rental/quotation-defaults';
 import MovementExportControls from '@/rental/movement-export-controls';
 import RentalGateway from './rental-gateway';
-import MovementHistory from '@/rental/movement-history-ui';
-import MovementCorrection from '@/rental/movement-correction-ui';
-import LedgerFormatSettings from '@/rental/ledger-format-ui';
-import GstLookup from '@/rental/gst-lookup';
-import MaterialLedger from '@/rental/material-ledger-ui';
+const MovementHistory=dynamic(()=>import('@/rental/movement-history-ui'));
+const MovementCorrection=dynamic(()=>import('@/rental/movement-correction-ui'));
+const LedgerFormatSettings=dynamic(()=>import('@/rental/ledger-format-ui'));
+const GstLookup=dynamic(()=>import('@/rental/gst-lookup'));
+const MaterialLedger=dynamic(()=>import('@/rental/material-ledger-ui'));
 import MovementForm, { clearMovementDraft } from './movement-form';
 import { useEffect, useState, type ReactNode, type FormEvent } from 'react';
 import { ArrowDownLeft, ArrowUpRight, ArrowRight, Building2, Boxes, CalendarDays, Check, ChevronDown, ClipboardList, Download, FileText, LayoutDashboard, LogOut, Plus, Search, Settings, ShieldCheck, Truck, Users, X, AlertTriangle, IndianRupee, PackageCheck, Menu, Pencil } from 'lucide-react';
@@ -30,7 +31,7 @@ export default function RentalApp({signedIn,isOwner=false}:{signedIn:boolean;isO
  async function reload(){try{setData(await api('state'));}catch(e){setError((e as Error).message);}}
  useEffect(()=>{if(logged)void reload();if(new URLSearchParams(window.location.search).get('view')==='Customers')setView('Customers');},[logged]);
  function go(name:string){setView(name);setSearch('');setMobileMenu(false);}
- async function act(fn:()=>Promise<unknown>,message='Saved successfully.') {setBusy(true);setError('');try{await fn();setNotice(message);await reload();return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
+ async function act(fn:()=>Promise<unknown>,message='Saved successfully.',refresh=true) {setBusy(true);setError('');try{await fn();setNotice(message);if(refresh)await reload();return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
  useEffect(()=>{if(notice){const timer=setTimeout(()=>setNotice(''),7000);return()=>clearTimeout(timer);}},[notice]);
  // A reopened form must not inherit an error from a previous request.
  useEffect(()=>{setError('');},[modal]);
@@ -66,7 +67,7 @@ export default function RentalApp({signedIn,isOwner=false}:{signedIn:boolean;isO
    {modal.kind==='correction'&&isOwner&&<MovementCorrection record={modal.record!} data={data} busy={busy} onSave={async d=>{const ok=await act(()=>api('rental/accounting/movements',d),'Movement corrected. Regenerate affected draft invoices.');if(ok)setModal(null);return ok;}}/>}
    {modal.kind==='customer'&&<CustomerForm initial={modal.record} busy={busy} onSave={async d=>{if(await act(()=>api('customers',d),'Customer saved. Existing batch lock dates remain unchanged.'))setModal(null);}}/>}
    {modal.kind==='item'&&<ItemForm initial={modal.record} rates={data.rates} busy={busy} onSave={async d=>{if(await act(()=>api('items',d),'Item saved. Existing damage prices remain unchanged.'))setModal(null);}}/>}
-   {modal.kind==='movement'&&<MovementForm renderCreate={(kind,done)=>kind==='customer'?<CustomerForm busy={busy} onSave={async d=>{await act(async()=>{const result=await api('customers',d);await reload();done(result.id);},'Customer created. Continue your dispatch.');}}/>:<ItemForm rates={data.rates} busy={busy} onSave={async d=>{await act(async()=>{const result=await api('items',d);await reload();done(result.id);},'Item created. Continue your dispatch.');}}/>} data={data} initial={modal.record||{}} busy={busy} onSave={async d=>{let note='Movement saved.';if(await act(async()=>{const result=await api('movements',d);const pending=result.previews.flatMap((p:Obj)=>p.deferred);if(pending.length)note+=` ${pending.reduce((s:number,p:Obj)=>s+p.quantity,0)} returned units remain billable through the return day or their minimum commitment, whichever is later.`;setNotice(note);},'')){clearMovementDraft(d.type||modal.record?.type||'DISPATCH');setNotice(note);setModal(null);return true;}return false;}}/>}
+   {modal.kind==='movement'&&<MovementForm renderCreate={(kind,done)=>kind==='customer'?<CustomerForm busy={busy} onSave={async d=>{await act(async()=>{const result=await api('customers',d);await reload();done(result.id);},'Customer created. Continue your dispatch.',false);}}/>:<ItemForm rates={data.rates} busy={busy} onSave={async d=>{await act(async()=>{const result=await api('items',d);await reload();done(result.id);},'Item created. Continue your dispatch.',false);}}/>} data={data} initial={modal.record||{}} busy={busy} onSave={async d=>{let note='Movement saved.';if(await act(async()=>{const result=await api('movements',d);const pending=result.previews.flatMap((p:Obj)=>p.deferred);if(pending.length)note+=` ${pending.reduce((s:number,p:Obj)=>s+p.quantity,0)} returned units remain billable through the return day or their minimum commitment, whichever is later.`;setNotice(note);},'')){clearMovementDraft(d.type||modal.record?.type||'DISPATCH');setNotice(note);setModal(null);return true;}return false;}}/>}
    {modal.kind==='invoice'&&<InvoiceForm data={data} initial={modal.record} busy={busy} onSave={async d=>{if(await act(()=>api(modal.record?.id?'invoices/'+modal.record.id:'invoices',d),'Draft saved. Review it in Invoice History before finalizing.')){setModal(null);go('Invoices');}}}/>}
    {modal.kind==='invoice-detail'&&<InvoiceDetail invoice={modal.record!} onEdit={()=>setModal({kind:'invoice',record:modal.record})} busy={busy} onFinalize={async()=>{if(await act(()=>api(`invoices/${modal.record!.id}/finalize`,{}),'Invoice finalized and locked.'))setModal({kind:'invoice-detail',record:await api('invoices/'+modal.record!.id)});}}/>}
    {modal.kind==='quotation'&&<QuotationForm data={data} busy={busy} onSave={async d=>{if(await act(()=>api('quotations',d),'Quotation saved. Download the PDF from the quotation list.'))setModal(null);}}/>}

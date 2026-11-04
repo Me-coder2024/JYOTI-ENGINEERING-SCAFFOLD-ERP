@@ -11,8 +11,8 @@ const displayDate=(value:string)=>new Date(value+'T00:00:00').toLocaleDateString
 function Field({label,hint,children}:{label:string;hint?:string;children:ReactNode}) {
  return <label className="field"><span>{label}</span>{children}{hint&&<small>{hint}</small>}</label>;
 }
-async function previewMovement(payload:unknown) {
- const response=await fetch('/api/movements/preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+async function previewMovement(payload:unknown,signal:AbortSignal) {
+ const response=await fetch('/api/movements/preview',{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
  const result=await response.json();
  if(!response.ok) throw new Error(result.error||'Unable to check this entry.');
  return result;
@@ -86,7 +86,6 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(false);
  const [retry,setRetry]=useState(0);
- const previewFlight=useRef<Promise<unknown>>(Promise.resolve());
  const [showDraftNotice,setShowDraftNotice]=useState(hasDraft);
 
  const savedSuccessfullyRef=useRef(false);
@@ -120,26 +119,23 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
   item_id:l.item_id,quantity:l.quantity,damaged_quantity:l.damaged_quantity,
   ...(!isReturn&&l.rental_rate!==''?{rental_rate:Number(l.rental_rate)}:{})
  }))};
- const payloadKey=JSON.stringify(payload);
+ const payloadKey=JSON.stringify({customer_id:customer,date,type:initial.type,lines:payload.lines});
  const valid=Boolean(customer&&date&&lines.every(l=>l.item_id&&l.quantity>0&&(isReturn||l.rental_rate!=='')));
  useEffect(()=>{
   setPreview(null);setError('');setLoading(false);
   if(!valid) return;
   let cancelled=false;
+  const controller=new AbortController();
   const timer=setTimeout(async()=>{
    setLoading(true);
    try{
-    await previewFlight.current.catch(()=>{});
-    if(cancelled)return;
-    const request=previewMovement(JSON.parse(payloadKey));
-    previewFlight.current=request;
-    const result=await request;
+    const result=await previewMovement(JSON.parse(payloadKey),AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]));
     if(!cancelled)setPreview({...result,payloadKey});
    }
    catch(e){if(!cancelled)setError((e as Error).message);}
    finally{if(!cancelled)setLoading(false);}
   },600);
-  return()=>{cancelled=true;clearTimeout(timer);};
+  return()=>{cancelled=true;clearTimeout(timer);controller.abort();};
  },[payloadKey,valid,retry]);
  function changeLine(index:number,values:Partial<EntryLine>) {
   setLines(current=>current.map((line,i)=>i===index?{...line,...values}:line));

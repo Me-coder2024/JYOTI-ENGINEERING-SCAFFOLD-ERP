@@ -19,15 +19,16 @@ export async function state() {
  const results = await Promise.all([
  pool.query('SELECT * FROM company WHERE id=1'), pool.query("SELECT c.*, l.party_details->>'mailing_name' AS mailing_name,l.party_details->>'country' AS country,l.party_details->>'place_of_supply' AS place_of_supply,l.party_details->>'gst_registration' AS gst_registration FROM customers c LEFT JOIN rental_acc_ledgers l ON l.customer_id=c.id ORDER BY c.name"), pool.query('SELECT * FROM items ORDER BY name'), pool.query('SELECT * FROM rates ORDER BY effective_from'), pool.query('SELECT * FROM movements ORDER BY date,created_at,id'), pool.query('SELECT id,invoice_no,customer_id,period_start,period_end,status,grand_total,damage_total,generated_at FROM invoices ORDER BY generated_at DESC'), pool.query('SELECT * FROM quotations ORDER BY created_at DESC')]);
  const [company, customers, items, rates, movements, invoices, quotations] = results.map(r => r.rows);
- const balances = [];
- for (const c of customers) for (const i of items) {
-   const ms = movements.filter(m => m.customer_id === c.id && m.item_id === i.id).map(m => ({...m,created_at:m.created_at.toISOString()}));
-   if (!ms.length) continue;
-   const t = timelines(ms);
-   balances.push({ customer_id:c.id,item_id:i.id, physical:balanceAt(t.physical,today()),billable:balanceAt(t.billable,today()),pending:t.allocations.filter(a => a.return_date<=today() && a.billing_date>today()),last_movement:ms.at(-1).date });
+ const balances = [],currentDay=today();
+ const grouped=new Map<string,any[]>();
+ for(const m of movements){const key=m.customer_id+':'+m.item_id;const group=grouped.get(key)||[];group.push({...m,created_at:m.created_at.toISOString()});grouped.set(key,group);}
+ for(const ms of grouped.values()){
+   const first=ms[0],t=timelines(ms);
+   balances.push({customer_id:first.customer_id,item_id:first.item_id,physical:balanceAt(t.physical,currentDay),billable:balanceAt(t.billable,currentDay),pending:t.allocations.filter(a=>a.return_date<=currentDay&&a.billing_date>currentDay),last_movement:ms.at(-1).date});
  }
- const payments=(await pool.query(paymentRowsSql)).rows;
- return { company:company[0],customers,items,rates,movements,invoices:invoices.map(i=>({...i,...paymentSummary(i.grand_total,payments.filter(p=>p.invoice_id===i.id))})),quotations,balances,today:today() };
+ const payments=(await pool.query(paymentRowsSql)).rows,byInvoice=new Map<string,any[]>();
+ for(const p of payments){const group=byInvoice.get(p.invoice_id)||[];group.push(p);byInvoice.set(p.invoice_id,group);}
+ return {company:company[0],customers,items,rates,movements,invoices:invoices.map(i=>({...i,...paymentSummary(i.grand_total,byInvoice.get(i.id)||[])})),quotations,balances,today:currentDay};
 }
 export async function saveCustomer(input: unknown) {
  const d = customerSchema.parse(input), id=d.id||randomUUID();
@@ -67,16 +68,20 @@ export async function saveMovement(input: unknown, preview=false) {
    const challanId=randomUUID();
    const reference=d.reference || (preview?'Assigned on save':`${d.type==='DISPATCH'?'DC':'RC'}-${(await db.query("SELECT nextval('rental_challan_number_seq') AS n")).rows[0].n}`);
    const previews=[];
+   const itemIds=d.lines.map(l=>l.item_id);
+   const itemRows=(await db.query('SELECT * FROM items WHERE id=ANY($1::uuid[])',[itemIds])).rows;
+   const history=(await db.query('SELECT * FROM movements WHERE customer_id=$1 AND item_id=ANY($2::uuid[]) ORDER BY date,created_at,id',[c.id,itemIds])).rows.map(m=>({...m,created_at:m.created_at.toISOString()}));
+   const standardRates=d.type==='DISPATCH'?(await db.query('SELECT DISTINCT ON (item_id) item_id,rate FROM rates WHERE item_id=ANY($1::uuid[]) AND effective_from<=$2 ORDER BY item_id,effective_from DESC',[itemIds,d.date])).rows:[];
    for(const line of d.lines) {
-     const item=(await db.query('SELECT * FROM items WHERE id=$1',[line.item_id])).rows[0];
+     const item=itemRows.find(i=>i.id===line.item_id);
      if(!item || (d.type==='DISPATCH'&&!item.active)) throw new Error('Choose an active item for dispatch.');
      if(line.damaged_quantity>line.quantity || (d.type==='DISPATCH'&&line.damaged_quantity)) throw new Error('Damaged quantity must be part of the returned quantity.');
      if(line.damaged_quantity && Number(item.material_value)<=0) throw new Error(`Set the original price for ${item.name} before recording damage.`);
-     const ms=(await db.query('SELECT * FROM movements WHERE customer_id=$1 AND item_id=$2 ORDER BY date,created_at,id',[c.id,item.id])).rows.map(m=>({...m,created_at:m.created_at.toISOString()}));
+     const ms=history.filter(m=>m.item_id===item.id);
      const id=randomUUID();
      let rentalRate:string|null=null;
      if(d.type==='DISPATCH') {
-       const standard=(await db.query('SELECT rate FROM rates WHERE item_id=$1 AND effective_from<=$2 ORDER BY effective_from DESC LIMIT 1',[item.id,d.date])).rows[0]?.rate;
+       const standard=standardRates.find(r=>r.item_id===item.id)?.rate;
        if(line.rental_rate===undefined && standard===undefined) throw new Error(`Enter an agreed rental rate for ${item.name}; no standard rate is set on ${d.date}.`);
        rentalRate=Number(line.rental_rate??standard).toFixed(4);
      } else if(line.rental_rate!==undefined) throw new Error('Return rates come from the original dispatch and cannot be changed.');
@@ -88,7 +93,7 @@ export async function saveMovement(input: unknown, preview=false) {
      await db.query(`INSERT INTO movements(id,customer_id,item_id,date,type,quantity,lock_until,damaged_quantity,damage_price,note,rental_rate,reference,challan_id,vehicle_no) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,[id,c.id,item.id,m.date,m.type,m.quantity,m.lock_until,line.damaged_quantity,item.material_value,d.note,rentalRate,reference,challanId,d.vehicle_no]);
      if(m.type==='DISPATCH') await db.query('INSERT INTO dispatch_lots(id,customer_id,item_id,original_quantity,dispatch_date,lock_until) VALUES($1,$2,$3,$4,$5,$6)',[id,c.id,item.id,m.quantity,m.date,m.lock_until]);
      await db.query('DELETE FROM return_allocations WHERE return_id IN (SELECT id FROM movements WHERE customer_id=$1 AND item_id=$2)',[c.id,item.id]);
-     for(const a of built.allocations) await db.query('INSERT INTO return_allocations(return_id,lot_id,quantity,return_date,billing_date) VALUES($1,$2,$3,$4,$5)',[a.return_id,a.lot_id,a.quantity,a.return_date,a.billing_date]);
+     if(built.allocations.length) await db.query('INSERT INTO return_allocations(return_id,lot_id,quantity,return_date,billing_date) SELECT return_id,lot_id,quantity,return_date,billing_date FROM jsonb_to_recordset($1::jsonb) AS a(return_id uuid,lot_id uuid,quantity integer,return_date date,billing_date date)',[JSON.stringify(built.allocations)]);
      await audit(db,'MOVEMENT_CREATE',id,{...m,customer_id:c.id});
    }
    return {previews,reference,challan_id:challanId};

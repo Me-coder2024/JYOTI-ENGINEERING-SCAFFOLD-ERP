@@ -12,3 +12,4 @@ test-results/
 *.crt
 tmp/
 deploy/backups/
+/output/pdf/*-review.pdf

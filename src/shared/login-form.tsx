@@ -1,4 +1,6 @@
 'use client';
+import building from '../../public/branding/jyoti-building.jpg';
+import logo from '../../public/branding/jyoti-logo.png';
 import {useState} from 'react';
 import {ArrowRight,Eye,EyeOff,LockKeyhole,ShieldCheck} from 'lucide-react';
 import './shared.css';
@@ -7,9 +9,9 @@ export default function LoginForm(){
  const [error,setError]=useState(''),[busy,setBusy]=useState(false),[showPassword,setShowPassword]=useState(false);
  return <main className="jyoti-login">
  <section className="jyoti-login-visual" aria-label="Jyoti Scaffold premises">
-  <img className="jyoti-building" src="/branding/jyoti-building.jpg" alt="Jyoti Scaffold Private Limited building" fetchPriority="high"/>
+  <img className="jyoti-building" src={building.src} width={building.width} height={building.height} alt="Jyoti Scaffold Private Limited building" fetchPriority="high"/>
   <div className="jyoti-photo-shade"/>
-  <div className="jyoti-login-brand"><img src="/branding/jyoti-logo.png" alt="Jyoti"/><div>JYOTI<small>RENTAL & ACCOUNTS</small></div></div>
+  <div className="jyoti-login-brand"><img src={logo.src} width={logo.width} height={logo.height} alt="Jyoti"/><div>JYOTI<small>RENTAL & ACCOUNTS</small></div></div>
   <div className="jyoti-login-intro"><span className="jyoti-login-kicker">BUILT ON TRUST. READY FOR EVERY DAY.</span><h1>Every piece. <br/>Every day. <br/><span>Accounted for.</span></h1><p>Your materials, movements and accounts.<br/>Together in one workspace.</p></div>
   <div className="jyoti-photo-footer"><span>JYOTI SCAFFOLD PRIVATE LIMITED</span><span>Jamnagar · Ahmedabad</span></div>
  </section>

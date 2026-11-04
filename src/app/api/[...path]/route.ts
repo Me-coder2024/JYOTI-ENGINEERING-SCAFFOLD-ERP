@@ -1,36 +1,40 @@
+import {withInvoiceCompany} from '@/rental/invoice-company';
 import {paymentRowsSql,paymentSummary} from '@/rental/payments';
-import {materialExport} from '@/rental/material-export';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { authenticated, createSession, validPassword } from '@/lib/auth';
 import * as service from '@/lib/service';
 import { pool } from '@/lib/db';
-import { makePdf, makeExcel } from '@/lib/documents';
-import {invoiceExcel} from '@/rental/invoice-reference';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
+function timedJson(value:unknown,operation:string,start:number){
+ const duration=Math.round(performance.now()-start);
+ if(duration>1000)console.info(JSON.stringify({event:'slow_rental_request',operation,duration_ms:duration}));
+ return NextResponse.json(value,{headers:{'Cache-Control':'private, no-store','Server-Timing':`application;dur=${duration}`}});
+}
 const attempts=new Map<string,{count:number,until:number}>();
 export async function GET(req:NextRequest,{params}:{params:Promise<{path:string[]}>}) {
  try {
   if(!await authenticated()) return NextResponse.json({error:'Please sign in.'},{status:401});
   const path=(await params).path;
-  if(path[0]==='state') return NextResponse.json(await service.state());
+  if(path[0]==='state'){const start=performance.now();return timedJson(await service.state(),'state',start);}
   if(path[0]==='invoices' && path[1]) {
-   const invoice=(await pool.query('SELECT * FROM invoices WHERE id=$1',[path[1]])).rows[0];
+   let invoice=(await pool.query('SELECT * FROM invoices WHERE id=$1',[path[1]])).rows[0];
    if(!invoice) return NextResponse.json({error:'Invoice not found.'},{status:404});
+   invoice=withInvoiceCompany(invoice,(await pool.query('SELECT * FROM company WHERE id=1')).rows[0]||{});
    invoice.payments=(await pool.query('SELECT * FROM ('+paymentRowsSql+') p WHERE invoice_id=$1 ORDER BY date,voucher_no',[invoice.id])).rows;
    Object.assign(invoice,paymentSummary(invoice.grand_total,invoice.payments));
-   if(path[2]==='pdf') return new Response(new Uint8Array(await makePdf(invoice)),{headers:{'Content-Type':'application/pdf','Content-Disposition':`${req.nextUrl.searchParams.get('preview')==='1'?'inline':'attachment'}; filename="${invoice.invoice_no.replaceAll('/','-')}.pdf"`,'Cache-Control':'private, no-store'}});
-   if(path[2]==='xlsx')return new Response(await invoiceExcel(invoice),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="${invoice.invoice_no.replaceAll('/','-')}.xlsx"`,'Cache-Control':'private, no-store'}});
+   if(path[2]==='pdf') return new Response(new Uint8Array(await (await import('@/lib/documents')).makePdf(invoice)),{headers:{'Content-Type':'application/pdf','Content-Disposition':`${req.nextUrl.searchParams.get('preview')==='1'?'inline':'attachment'}; filename="${invoice.invoice_no.replaceAll('/','-')}.pdf"`,'Cache-Control':'private, no-store'}});
+   if(path[2]==='xlsx')return new Response(await (await import('@/rental/invoice-reference')).invoiceExcel(invoice),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="${invoice.invoice_no.replaceAll('/','-')}.xlsx"`,'Cache-Control':'private, no-store'}});
    return NextResponse.json(invoice);
   }
   if(path[0]==='quotations'&&path[1]) {
     const quote=(await pool.query('SELECT * FROM quotations WHERE id=$1',[path[1]])).rows[0];
     if(!quote) return NextResponse.json({error:'Quotation not found.'},{status:404});
-    return new Response(new Uint8Array(await makePdf(quote,true)),{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="quotation.pdf"'}});
+    return new Response(new Uint8Array(await (await import('@/lib/documents')).makePdf(quote,true)),{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="quotation.pdf"'}});
   }
   if(path[0]==='export') {
-   const result=path[1]==='ledger'?(await materialExport(new URLSearchParams({customer:req.nextUrl.searchParams.get('customer')||'',start:req.nextUrl.searchParams.get('start')||'1900-01-01',end:req.nextUrl.searchParams.get('end')||new Date().toISOString().slice(0,10),format:'xlsx'}))).bytes:await makeExcel(path[1]);
+   const result=path[1]==='ledger'?(await (await import('@/rental/material-export')).materialExport(new URLSearchParams({customer:req.nextUrl.searchParams.get('customer')||'',start:req.nextUrl.searchParams.get('start')||'1900-01-01',end:req.nextUrl.searchParams.get('end')||new Date().toISOString().slice(0,10),format:'xlsx'}))).bytes:await (await import('@/lib/documents')).makeExcel(path[1]);
    return new Response(new Uint8Array(result),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="jyoti-${path[1]}.xlsx"`}});
   }
   return NextResponse.json({error:'Not found.'},{status:404});
@@ -57,6 +61,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{path:string
    return NextResponse.json({ok:true});
   }
   if(!await authenticated()) return NextResponse.json({error:'Please sign in.'},{status:401});
+  const start=performance.now();
   const data=await req.json();
   let result;
   if(path[0]==='customers') result=await service.saveCustomer(data);
@@ -68,7 +73,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{path:string
   else if(path[0]==='company') result=await service.saveCompany(data);
   else if(path[0]==='quotations') result=await service.saveQuotation(data);
   else return NextResponse.json({error:'Not found.'},{status:404});
-  return NextResponse.json(result);
+  return timedJson(result,path.slice(0,1).join('/')+(path[1]==='preview'?'/preview':''),start);
  } catch(error) {
   console.error(error);
   const e=error as {code?:string;message?:string;issues?:{message:string;path:string[]}[]};
