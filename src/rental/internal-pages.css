@@ -1,4 +1,9 @@
 /* Internal work screens only; gateway/dashboard layout is intentionally excluded. */
+.erp-wrapper .movement-row-actions{display:flex;align-items:center;gap:12px;flex-wrap:nowrap}
+.erp-wrapper .movement-print{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:88px;min-height:48px;padding:10px 12px;border:1px solid #cddbeb;border-radius:6px;background:#f5f9ff;color:#2d6094;font-size:13px;font-weight:600;line-height:1;text-decoration:none;white-space:nowrap}
+.erp-wrapper .movement-print:hover{background:#e6f0fb;border-color:#89acd1}
+.erp-wrapper .movement-print:focus-visible{outline:2px solid #32689e;outline-offset:3px}
+.erp-wrapper .movement-row-actions .movement-edit{min-height:48px;white-space:nowrap;margin:0}
 .erp-wrapper .rental-internal .page-heading{align-items:flex-start;gap:20px;margin-bottom:24px;flex-wrap:wrap}
 .erp-wrapper .rental-internal .heading-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .erp-wrapper .rental-internal .panel{min-width:0;overflow:hidden;margin-bottom:20px}
