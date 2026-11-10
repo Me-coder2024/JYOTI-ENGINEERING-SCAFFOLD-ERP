@@ -1,4 +1,5 @@
 import {withInvoiceCompany} from '@/rental/invoice-company';
+import {requireApi} from '@/shared/guards';
 import {paymentRowsSql,paymentSummary} from '@/rental/payments';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
@@ -67,7 +68,7 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{path:string
   if(path[0]==='customers') result=await service.saveCustomer(data);
   else if(path[0]==='items') result=await service.saveItem(data);
   else if(path[0]==='movements') result=await service.saveMovement(data,path[1]==='preview');
-  else if(path[0]==='invoices'&&path[2]==='finalize') result=await service.finalizeInvoice(path[1]);
+  else if(path[0]==='invoices'&&path[2]==='finalize') result=await service.finalizeInvoice(path[1],await requireApi(req,'rental'));
   else if(path[0]==='invoices'&&path[1]&&path[1]!=='preview') result=await service.updateInvoice(path[1],data);
   else if(path[0]==='invoices') result=await service.createInvoice(data,path[1]==='preview');
   else if(path[0]==='company') result=await service.saveCompany(data);

@@ -1,4 +1,6 @@
 import Decimal from 'decimal.js';
+import {postInvoice} from '@/rental/invoice-posting';
+import type {User} from '@/shared/access';
 import {paymentRowsSql,paymentSummary} from '@/rental/payments';
 import {validGstin} from '@/rental/gst';
 import { randomUUID } from 'node:crypto';
@@ -132,13 +134,14 @@ export async function createInvoice(input:unknown,preview=false) {
    await audit(db,'INVOICE_DRAFT',id,s); return {id,invoice_no:number};
  });
 }
-export async function finalizeInvoice(id:string) {
+export async function finalizeInvoice(id:string,user:User) {
  uuid.parse(id);
  return transaction(async db=> {
+   await db.query('SELECT pg_advisory_xact_lock(914715)');
    await db.query('SELECT pg_advisory_xact_lock(914712)');
    const invoice=(await db.query('SELECT * FROM invoices WHERE id=$1 FOR UPDATE',[id])).rows[0];
    if(!invoice) throw new Error('Invoice not found.');
-   if(invoice.status==='FINAL') return {id};
+   if(invoice.status==='FINAL') {await postInvoice(db,user,invoice);return {id};}
    const overlap=(await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start<=$3 AND period_end>=$2`,[invoice.customer_id,invoice.period_start,invoice.period_end])).rows;
    if(overlap.length) throw new Error(`Period overlaps ${overlap[0].invoice_no}.`);
    const fresh=await calculateInvoice(db,{...invoice,document_details:invoice.snapshot.document_details});
@@ -147,7 +150,9 @@ export async function finalizeInvoice(id:string) {
      const stable=(v:unknown):string=>JSON.stringify(v,(_k,val)=>val&&typeof val==='object'&&!Array.isArray(val)?Object.fromEntries(Object.entries(val).sort(([a],[b])=>a.localeCompare(b))):val);
      if(stable(fresh)!==stable(invoice.snapshot)) throw new Error('Source data changed since this draft was saved. Generate and review a fresh draft before finalizing.');
    }
-   await db.query("UPDATE invoices SET status='FINAL',finalized_at=now() WHERE id=$1",[id]); await audit(db,'INVOICE_FINALIZE',id,{});return {id};
+   const finalized=(await db.query("UPDATE invoices SET status='FINAL',finalized_at=now() WHERE id=$1 RETURNING *",[id])).rows[0];
+   await postInvoice(db,user,finalized);
+   await audit(db,'INVOICE_FINALIZE',id,{});return {id};
  });
 }
 export async function updateInvoice(id:string,input:unknown) {

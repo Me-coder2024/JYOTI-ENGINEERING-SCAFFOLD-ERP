@@ -76,15 +76,46 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  const quote=(await pool.query('SELECT * FROM quotations WHERE id=$1',[quotation.id])).rows[0];
  assert.equal(quote.snapshot.reference,'TEST/Q1');assert.equal(quote.snapshot.lines[0].daily_total,'20.00');assert.equal(quote.snapshot.gst_percent,18);
  console.log('PASS: date/type/search-filtered PDF/Excel history and saved quotation financial fields.');
- const invoice:any=await s.createInvoice({customer_id:customer.id,period_start:'2026-01-01',period_end:'2026-01-31',gst_percent:0,notes:'',document_details:{payment_terms:'Within 15 days',tax_mode:'CGST_SGST'}});await s.finalizeInvoice(invoice.id);assert.equal((await pool.query('SELECT snapshot FROM invoices WHERE id=$1',[invoice.id])).rows[0].snapshot.document_details.payment_terms,'Within 15 days');const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});await a.saveAccountingSettings(owner,{company_name:'Jyoti Scaffold Private Limited',financial_year_start:'2026-01-01',closed_through:''});const bank=await a.saveLedger(owner,{name:'Bank',group_name:'Bank Accounts',party_details:{},is_active:true});const receipt={id:randomUUID(),type:'Receipt',date:today,narration:'Invoice payment',lines:[{ledger_id:bank.id,debit:10,credit:0},{ledger_id:ledger.id,debit:0,credit:10}],details:{receipt_invoice_id:invoice.id}};await a.postVoucher(owner,receipt);assert.equal((await a.postVoucher(owner,receipt)).repeated,true);await assert.rejects(a.postVoucher(owner,{...receipt,id:randomUUID(),lines:[{ledger_id:bank.id,debit:999999,credit:0},{ledger_id:ledger.id,debit:0,credit:999999}]}),/exceeds/);const reversed={id:randomUUID(),type:'Journal',date:today,narration:'Reverse payment',reverses_id:receipt.id,lines:receipt.lines.map(l=>({...l,debit:l.credit,credit:l.debit}))};await a.postVoucher(owner,reversed);assert.equal((await pool.query("SELECT count(*) n FROM rental_acc_vouchers v WHERE v.details->>'receipt_invoice_id'=$1 AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id)",[invoice.id])).rows[0].n,'0');
+ const invoice:any=await s.createInvoice({customer_id:customer.id,period_start:'2026-01-01',period_end:'2026-01-31',gst_percent:0,notes:'',document_details:{payment_terms:'Within 15 days',tax_mode:'CGST_SGST'}});await a.saveAccountingSettings(owner,{company_name:'Jyoti Scaffold Private Limited',financial_year_start:'2026-01-01',closed_through:''});await s.finalizeInvoice(invoice.id,owner);assert.equal((await pool.query('SELECT snapshot FROM invoices WHERE id=$1',[invoice.id])).rows[0].snapshot.document_details.payment_terms,'Within 15 days');const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});await a.saveAccountingSettings(owner,{company_name:'Jyoti Scaffold Private Limited',financial_year_start:'2026-01-01',closed_through:''});const bank=await a.saveLedger(owner,{name:'Bank',group_name:'Bank Accounts',party_details:{},is_active:true});const receipt={id:randomUUID(),type:'Receipt',date:today,narration:'Invoice payment',lines:[{ledger_id:bank.id,debit:10,credit:0},{ledger_id:ledger.id,debit:0,credit:10}],details:{receipt_invoice_id:invoice.id}};await a.postVoucher(owner,receipt);assert.equal((await a.postVoucher(owner,receipt)).repeated,true);await assert.rejects(a.postVoucher(owner,{...receipt,id:randomUUID(),lines:[{ledger_id:bank.id,debit:999999,credit:0},{ledger_id:ledger.id,debit:0,credit:999999}]}),/exceeds/);const reversed={id:randomUUID(),type:'Journal',date:today,narration:'Reverse payment',reverses_id:receipt.id,lines:receipt.lines.map(l=>({...l,debit:l.credit,credit:l.debit}))};await a.postVoucher(owner,reversed);assert.equal((await pool.query("SELECT count(*) n FROM rental_acc_vouchers v WHERE v.details->>'receipt_invoice_id'=$1 AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id)",[invoice.id])).rows[0].n,'0');
 
  const invoiceA=randomUUID(),invoiceB=randomUUID();
+ const {deleteRecord}=await import('../src/rental/delete-record');
+ const {reconcileInvoices}=await import('../src/rental/invoice-posting');
+ const charge=(await pool.query('SELECT * FROM rental_acc_vouchers WHERE source_invoice_id=$1',[invoice.id])).rows[0];
+ assert.equal(charge.type,'Sales');assert.equal(charge.lines.find((l:any)=>l.customer_id===customer.id).debit,charge.total);
+ await assert.rejects(a.postVoucher(owner,{id:randomUUID(),type:'Journal',date:today,narration:'Remove invoice charge',reverses_id:charge.id,lines:charge.lines.map((l:any)=>({ledger_id:l.ledger_id,debit:Number(l.credit),credit:Number(l.debit)}))}),/finalized invoice charge/);
+ await Promise.all([s.finalizeInvoice(invoice.id,owner),s.finalizeInvoice(invoice.id,owner)]);
+ assert.equal((await pool.query('SELECT count(*) n FROM rental_acc_vouchers WHERE source_invoice_id=$1',[invoice.id])).rows[0].n,'1');
+ const draft:any=await s.createInvoice({customer_id:newParty.id,period_start:'2026-01-01',period_end:'2026-01-31',gst_percent:18,notes:''});
+ await assert.rejects(deleteRecord({...owner,role:'RENTAL_STAFF'},{kind:'invoice',id:draft.id,reason:'Test deletion'}),/Only the owner/);
+ await deleteRecord(owner,{kind:'invoice',id:draft.id,reason:'Duplicate draft'});
+ assert.equal((await deleteRecord(owner,{kind:'invoice',id:draft.id,reason:'Duplicate draft'})).repeated,true);
+ await assert.rejects(deleteRecord(owner,{kind:'invoice',id:invoice.id,reason:'Delete finalized invoice'}),/Final invoices/);
+ await assert.rejects(deleteRecord(owner,{kind:'customer',id:customer.id,reason:'Used customer'}),/posted transactions/);
+ await assert.rejects(deleteRecord(owner,{kind:'ledger',id:bank.id,reason:'Used bank'}),/posted transactions/);
+ const unused=await s.saveItem({name:'Unused deletion fixture',material_value:1,rate:1,effective_from:'2026-01-01'});
+ await deleteRecord(owner,{kind:'item',id:unused.id,reason:'Unused fixture'});
+ assert.equal((await pool.query('SELECT count(*) n FROM rates WHERE item_id=$1',[unused.id])).rows[0].n,'0');
+ assert.equal((await pool.query("SELECT count(*) n FROM erp_audit WHERE action='RENTAL_INVOICE_DELETED' AND entity_id=$1",[draft.id])).rows[0].n,'1');
+ const taxed:any=await s.createInvoice({customer_id:newParty.id,period_start:'2026-01-01',period_end:'2026-01-31',gst_percent:18,notes:''});
+ await pool.query("UPDATE rental_acc_accounting_settings SET closed_through=CURRENT_DATE WHERE id=1");
+ await assert.rejects(s.finalizeInvoice(taxed.id,owner),/open accounting period/);
+ assert.equal((await pool.query('SELECT status FROM invoices WHERE id=$1',[taxed.id])).rows[0].status,'DRAFT');
+ assert.equal((await pool.query('SELECT count(*) n FROM rental_acc_vouchers WHERE source_invoice_id=$1',[taxed.id])).rows[0].n,'0');
+ await pool.query('UPDATE rental_acc_accounting_settings SET closed_through=NULL WHERE id=1');
+ await s.finalizeInvoice(taxed.id,owner);
+ const taxCharge=(await pool.query('SELECT * FROM rental_acc_vouchers WHERE source_invoice_id=$1',[taxed.id])).rows[0];
+ assert.equal(taxCharge.lines.length,3);assert.ok(Number(taxCharge.lines.find((l:any)=>l.group_name==='Duties & Taxes').credit)>0);
+ console.log('PASS: automatic balanced invoice posting, tax posting, atomic failure rollback, repeated finalization, owner-only audited draft/master deletion and used-record protection.');
  for(const [id,no,total] of [[invoiceA,'TEST/A',20000],[invoiceB,'TEST/B',10000]]){
  await pool.query("INSERT INTO invoices(id,invoice_no,customer_id,period_start,period_end,status,gst_percent,snapshot,rental_total,damage_total,subtotal,gst_amount,grand_total,finalized_at) VALUES($1,$2,$3,'2025-01-01','2025-01-01','FINAL',0,'{}', $4,0,$4,0,$4,now())",[id,no,customer.id,total]);
  }
  const simple={id:randomUUID(),entry_mode:'simple',type:'Receipt',party_ledger_id:ledger.id,bank_ledger_id:bank.id,amount:8000,date:today,narration:'Partial customer payment',details:{allocations:[{invoice_id:invoiceA,amount:8000}]}};
+ assert.equal((await reconcileInvoices(owner)).posted,2);assert.equal((await reconcileInvoices(owner)).posted,0);
  const concurrent=await Promise.all([a.postVoucher(owner,simple),a.postVoucher(owner,simple)]);assert.equal(concurrent.filter(r=>r.repeated).length,1);
  let financial=await a.accountingState();let balanceA=financial.invoices.find(i=>i.id===invoiceA)!;assert.equal(balanceA.paid,'8000.00');assert.equal(balanceA.outstanding,'12000.00');assert.equal(balanceA.payment_status,'Partially Paid');
+ const {partyStatement:customerStatement}=await import('../src/rental/party-ledger');
+ assert.equal(Number(customerStatement(financial.vouchers,ledger.id,'1900-01-01',today).closing),Number(charge.total)+30000-8000);
  const split={...simple,id:randomUUID(),amount:22000,details:{allocations:[{invoice_id:invoiceA,amount:12000},{invoice_id:invoiceB,amount:10000}]}};
  await a.postVoucher(owner,split);financial=await a.accountingState();assert.equal(financial.invoices.find(i=>i.id===invoiceA)!.payment_status,'Fully Paid');assert.equal(financial.invoices.find(i=>i.id===invoiceB)!.outstanding,'0.00');
  await assert.rejects(a.postVoucher(owner,{...simple,id:randomUUID()}),/exceeds/);
@@ -115,7 +146,7 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  console.log('PASS: party ledger matches posted balances, PDF/Excel exports share format settings, and finalized movements remain locked.');
  console.log('PASS: automatic receipt/payment double entry, partial/full/split allocations, reversal recalculation and concurrent retry idempotency.');
  const {cancelVoucher}=await import('../src/rental/cancel-voucher');
- const cancelOriginal=(await pool.query("SELECT * FROM rental_acc_vouchers v WHERE reverses_id IS NULL AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id) ORDER BY created_at LIMIT 1")).rows[0];
+ const cancelOriginal=(await pool.query("SELECT * FROM rental_acc_vouchers v WHERE source_invoice_id IS NULL AND reverses_id IS NULL AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id) ORDER BY created_at LIMIT 1")).rows[0];
  const cancellation={id:cancelOriginal.id,submission_id:randomUUID(),date:new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}),reason:'Test cancellation'};
  await assert.rejects(cancelVoucher({...owner,role:'RENTAL_STAFF'},cancellation),/Only the owner/);
  await cancelVoucher(owner,cancellation);await cancelVoucher(owner,cancellation);
@@ -144,6 +175,7 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/formats',{method:'POST',headers:{Cookie:staffCookie,'Content-Type':'application/json',Origin:baseUrl},body:JSON.stringify({})})).status,403);
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/movement-history',{headers:{Cookie:staffCookie}})).status,403);
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/cancel-voucher',{method:'POST',headers:{Cookie:staffCookie,'Content-Type':'application/json',Origin:baseUrl},body:JSON.stringify(cancellation)})).status,403);
+ for(const action of ['delete-record','reconcile-invoices'])assert.equal((await fetch(baseUrl+'/api/rental/accounting/'+action,{method:'POST',headers:{Cookie:staffCookie,'Content-Type':'application/json',Origin:baseUrl},body:'{}'})).status,403);
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/movement-history',{headers})).status,200);
  assert.equal((await fetch(baseUrl+'/api/rental/accounting/party-ledger?'+new URLSearchParams({ledger:ledger.id,start:'1900-01-01',end:today,format:'pdf'}),{headers})).status,200);
  console.log('PASS: HTTP authentication, rental staff accounting, owner-only access, manufacturing retirement, GST not-configured response and PDF download.');
