@@ -21,7 +21,7 @@ async function previewMovement(payload:unknown,signal:AbortSignal) {
 /* ── Draft persistence helpers ── */
 export const DRAFT_KEY_PREFIX='je_movement_draft_';
 export function draftKey(type:string){return DRAFT_KEY_PREFIX+type;}
-export interface DraftState{customer:string;date:string;lines:EntryLine[];note:string;reference:string;vehicle?:string;savedAt:number;}
+export interface DraftState{customer:string;date:string;lines:EntryLine[];note:string;reference:string;vehicle?:string;site?:string;savedAt:number;}
 
 export function hasDraftContent(state?:{customer?:string;reference?:string;note?:string;vehicle?:string;lines?:EntryLine[]}):boolean {
  if(!state) return false;
@@ -76,6 +76,9 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
  const restored=draft.current;
 
  const [customer,setCustomer]=useState(restored?.customer||initial.customer_id||'');
+ const [site,setSite]=useState(restored?.site||'');
+ const sites:string[]=data.customers.find((c:RecordData)=>c.id===customer)?.sites||[];
+ const legacyStock=isReturn&&data.movements.some((m:RecordData)=>m.customer_id===customer&&!m.site_name);
  const [date,setDate]=useState<string>(restored?.date||data.today);
  const [lines,setLines]=useState<EntryLine[]>(restored?.lines?.length?restored.lines:[emptyLine()]);
  const [note,setNote]=useState(restored?.note||'');
@@ -89,14 +92,14 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
  const [showDraftNotice,setShowDraftNotice]=useState(hasDraft);
 
  const savedSuccessfullyRef=useRef(false);
- const latestStateRef=useRef({customer,date,lines,note,reference,vehicle});
- latestStateRef.current={customer,date,lines,note,reference,vehicle};
+ const latestStateRef=useRef({customer,date,lines,note,reference,vehicle,site});
+ latestStateRef.current={customer,date,lines,note,reference,vehicle,site};
 
  // ── Auto-save draft on every change ──
  useEffect(()=>{
   if(savedSuccessfullyRef.current) return;
-  saveDraft(initial.type,{customer,date,lines,note,reference,vehicle});
- },[initial.type,customer,date,lines,note,reference,vehicle]);
+  saveDraft(initial.type,{customer,date,lines,note,reference,vehicle,site});
+ },[initial.type,customer,date,lines,note,reference,vehicle,site]);
 
  // ── Flush latest state on unmount if user navigated or clicked away ──
  useEffect(()=>{
@@ -115,12 +118,12 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
   return rate==null?'':String(Number(rate));
  }
  useEffect(()=>{setLines(current=>current.map(l=>l.item_id&&l.rental_rate===''&&!l.custom_rate?{...l,rental_rate:standardRate(l.item_id)}:l));},[data.rates]);
- const payload={customer_id:customer,date,type:initial.type,note,reference,vehicle_no:vehicle,lines:lines.map(l=>({
+ const payload={site_name:site==='__legacy__'?'':site,legacy_site:site==='__legacy__',customer_id:customer,date,type:initial.type,note,reference,vehicle_no:vehicle,lines:lines.map(l=>({
   item_id:l.item_id,quantity:l.quantity,damaged_quantity:l.damaged_quantity,
   ...(!isReturn&&l.rental_rate!==''?{rental_rate:Number(l.rental_rate)}:{})
  }))};
- const payloadKey=JSON.stringify({customer_id:customer,date,type:initial.type,lines:payload.lines});
- const valid=Boolean(customer&&date&&lines.every(l=>l.item_id&&l.quantity>0&&(isReturn||l.rental_rate!=='')));
+ const payloadKey=JSON.stringify({customer_id:customer,site_name:payload.site_name,legacy_site:payload.legacy_site,date,type:initial.type,lines:payload.lines});
+ const valid=Boolean(customer&&(!sites.length||sites.includes(site)||(legacyStock&&site==='__legacy__'))&&date&&lines.every(l=>l.item_id&&l.quantity>0&&(isReturn||l.rental_rate!=='')));
  useEffect(()=>{
   setPreview(null);setError('');setLoading(false);
   if(!valid) return;
@@ -146,7 +149,7 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
  }
  function discardDraft(){
   clearMovementDraft(initial.type);
-  setCustomer(initial.customer_id||'');
+  setCustomer(initial.customer_id||'');setSite('');
   setDate(data.today);
   setLines([emptyLine()]);
   setNote('');
@@ -161,20 +164,21 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
     if(saved)clearMovementDraft(initial.type);
     else{
      savedSuccessfullyRef.current=false;
-     saveDraft(initial.type,{customer,date,lines,note,reference,vehicle});
+     saveDraft(initial.type,{customer,date,lines,note,reference,vehicle,site});
     }
    }catch{
     savedSuccessfullyRef.current=false;
-    saveDraft(initial.type,{customer,date,lines,note,reference,vehicle});
+    saveDraft(initial.type,{customer,date,lines,note,reference,vehicle,site});
    }
   }
  }
- return <>{creating&&renderCreate&&<section className="form-section"><h3>Create {creating}</h3><button type="button" className="secondary" onClick={()=>setCreating('')}>Back to dispatch</button>{renderCreate(creating,id=>{if(creating==='customer')setCustomer(id);else setLines(current=>{const blank=current.findIndex(l=>!l.item_id);return blank>=0?current.map((l,i)=>i===blank?{...l,item_id:id,rental_rate:standardRate(id)}:l):[...current,{...emptyLine(),item_id:id,rental_rate:standardRate(id)}];});setCreating('');})}</section>}<form style={{display:creating?'none':undefined}} onSubmit={e=>{e.preventDefault();handleSave();}}>
-  {showDraftNotice&&<div className="alert success" role="status" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'0.75rem'}}><span>📝 Restored your unsaved {isReturn?'return':'dispatch'} draft.</span><button type="button" className="text-button" onClick={discardDraft} style={{whiteSpace:'nowrap'}}>Discard draft</button></div>}
-  <Field label="Delivery / return reference"><input maxLength={80} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Leave blank to generate a challan number"/></Field><Field label="Vehicle number (optional)"><input maxLength={40} value={vehicle} onChange={e=>setVehicle(e.target.value)}/></Field>
+ return <>{creating&&renderCreate&&<section className="form-section"><h3>Create {creating}</h3><button type="button" className="secondary" onClick={()=>setCreating('')}>Back to challan</button>{renderCreate(creating,id=>{if(creating==='customer'){setCustomer(id);setSite('');}else setLines(current=>{const blank=current.findIndex(l=>!l.item_id);return blank>=0?current.map((l,i)=>i===blank?{...l,item_id:id,rental_rate:standardRate(id)}:l):[...current,{...emptyLine(),item_id:id,rental_rate:standardRate(id)}];});setCreating('');})}</section>}<form style={{display:creating?'none':undefined}} onSubmit={e=>{e.preventDefault();handleSave();}}>
+  {showDraftNotice&&<div className="alert success" role="status" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'0.75rem'}}><span>📝 Restored your unsaved {isReturn?'inward challan':'outward challan'} draft.</span><button type="button" className="text-button" onClick={discardDraft} style={{whiteSpace:'nowrap'}}>Discard draft</button></div>}
+  <Field label="Challan number"><input maxLength={80} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Leave blank to generate a challan number"/></Field><Field label="Vehicle number (optional)"><input maxLength={40} value={vehicle} onChange={e=>setVehicle(e.target.value)}/></Field>
   <div className="form-grid">
-   <Field label="Customer"><select required value={customer} onChange={e=>setCustomer(e.target.value)}><option value="">Select customer</option>{data.customers.map((c:RecordData)=><option key={c.id} value={c.id}>{customerLabel(c)}</option>)}</select></Field>
-   <Field label={isReturn?'Return date':'Dispatch / delivery date'}><input type="date" required max={data.today} value={date} onChange={e=>changeDate(e.target.value)}/></Field>
+   <Field label="Customer"><select required value={customer} onChange={e=>{setCustomer(e.target.value);setSite('');}}><option value="">Select customer</option>{data.customers.map((c:RecordData)=><option key={c.id} value={c.id}>{customerLabel(c)}</option>)}</select></Field>
+   {sites.length>0&&<Field label={isReturn?'From site':'To site'}><select required value={site} onChange={e=>setSite(e.target.value)}><option value="">Select site</option>{sites.map(s=><option key={s} value={s}>{s}</option>)}{legacyStock&&<option value="__legacy__">Existing stock — site not recorded</option>}</select></Field>}
+   <Field label={isReturn?'Inward challan date':'Outward challan date'}><input type="date" required max={data.today} value={date} onChange={e=>changeDate(e.target.value)}/></Field>
   </div>
   {!isReturn&&renderCreate&&<div className="form-footer"><button type="button" className="secondary" onClick={()=>setCreating('customer')}>+ New customer</button><button type="button" className="secondary" onClick={()=>setCreating('item')}>+ New item</button></div>}
   <div className="form-section">
@@ -198,13 +202,13 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
   {loading&&<p className="muted">Checking balances and rates…</p>}
   {preview?.payloadKey===payloadKey&&preview?.previews.map((p:RecordData)=><div className="balance-preview" key={p.item_id}>
    <strong>{p.name}</strong>
-   <div>{p.before} at site <ArrowRight size={16}/><b>{p.after} after {isReturn?'return':'dispatch'}</b></div>
+   <div>{p.before} at site <ArrowRight size={16}/><b>{p.after} after {isReturn?'inward challan':'outward challan'}</b></div>
    {p.rental_rate!=null&&<small>Agreed rental rate: {currency(p.rental_rate)} per piece per day.</small>}
    {p.lock_until&&<small>This batch is locked until {displayDate(p.lock_until)}.</small>}
    {p.deferred.map((a:RecordData)=><small className="amber-text" key={a.lot_id}>{a.quantity} returned units stop billing from {displayDate(a.billing_date)} (return day included) at their original dispatch rate.</small>)}
    {Number(p.damage_total)>0&&<small className="amber-text">Damage charge to invoice: {currency(p.damage_total)}</small>}
   </div>)}
   <Field label="Note / challan reference"><textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Optional reference or transport details"/></Field>
-  <div className="form-footer"><span>{isReturn?'Returns are allocated to the oldest open batches.':'The agreed rate is saved with this dispatch.'}</span><button className="primary" disabled={busy||loading||!preview||preview.payloadKey!==payloadKey}>{busy?'Saving…':isReturn?'Save return':'Save dispatch'}</button></div>
+  <div className="form-footer"><span>{isReturn?'Returns are allocated to the oldest open batches.':'The agreed rate is saved with this dispatch.'}</span><button className="primary" disabled={busy||loading||!preview||preview.payloadKey!==payloadKey}>{busy?'Saving…':isReturn?'Save inward challan':'Save outward challan'}</button></div>
  </form></>;
 }

@@ -6,7 +6,7 @@ export default function MovementExportControls({start,end,type,onStart,onEnd,onT
  return <div className="report-filters">
  <label className="field"><span>From</span><input type="date" value={start} onChange={e=>onStart(e.target.value)}/></label>
  <label className="field"><span>To</span><input type="date" value={end} onChange={e=>onEnd(e.target.value)}/></label>
- <label className="field"><span>Movement type</span><select value={type} onChange={e=>onType(e.target.value)}><option value="">Dispatch & return</option><option value="DISPATCH">Dispatch</option><option value="RETURN">Return</option></select></label>
+ <label className="field"><span>Challan type</span><select value={type} onChange={e=>onType(e.target.value)}><option value="">All challans</option><option value="DISPATCH">Outward challan</option><option value="RETURN">Inward challan</option></select></label>
  <label className="field"><span>Customer</span><select value={customer} onChange={e=>onCustomer(e.target.value)}><option value="">All customers</option>{customers.map(c=><option key={c.id} value={c.id}>{customerLabel(c)}</option>)}</select></label>
  <label className="field"><span>Challan number</span><input value={challan} onChange={e=>onChallan(e.target.value)} placeholder="Search challan number"/></label>
  <div className="report-filter-actions">{valid?<><a className="secondary" target="_blank" rel="noopener noreferrer" href={url('pdf')}>Print / PDF</a><a className="secondary" href={url('xlsx')}>Export Excel</a></>:<p role="alert">Choose a valid date range to export.</p>}</div>

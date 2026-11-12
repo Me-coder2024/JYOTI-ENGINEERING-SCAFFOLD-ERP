@@ -11,6 +11,6 @@ export async function movementExport(params:URLSearchParams){
   [d.start,d.end,d.type,d.search,d.customer,d.challan])).rows,true);
  const settings=(await loadFormats()).material;
  const columns=['Date','Type','Reference','Particulars','Issu Qty','Rcpt Qty','Damaged'];
- return renderLedger({party:d.type==='DISPATCH'?'Dispatch history':d.type==='RETURN'?'Return history':'Dispatch & return history',address:'Active movements only. Deleted lines remain in owner correction history.',start:d.start,end:d.end,rows:rows.map(r=>({values:{Date:r.date,Type:r.type,Reference:r.reference||'',Particulars:r.customer+' / '+r.item,'Issu Qty':r.type==='DISPATCH'?r.quantity:0,'Rcpt Qty':r.type==='RETURN'?r.quantity:0,Damaged:r.damaged_quantity}}))},
- {...settings,title:'DISPATCH & RETURN HISTORY',orientation:'landscape',columns},d.format);
+ return renderLedger({party:d.type==='DISPATCH'?'Outward challan history':d.type==='RETURN'?'Inward challan history':'Challan history',address:'Active movements only. Deleted lines remain in owner correction history.',start:d.start,end:d.end,rows:rows.map(r=>({values:{Date:r.date,Type:r.type==='DISPATCH'?'Outward':'Inward',Reference:r.reference||'',Particulars:r.customer+(r.site_name?' / Site: '+r.site_name:'')+' / '+r.item,'Issu Qty':r.type==='DISPATCH'?r.quantity:0,'Rcpt Qty':r.type==='RETURN'?r.quantity:0,Damaged:r.damaged_quantity}}))},
+ {...settings,title:'CHALLAN HISTORY',orientation:'landscape',columns},d.format);
 }

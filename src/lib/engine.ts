@@ -2,7 +2,7 @@ import Decimal from 'decimal.js';
 
 export type Day = string;
 export class MovementValidationError extends Error {}
-export type Movement = { id: string; item_id: string; date: Day; type: 'DISPATCH' | 'RETURN'; quantity: number; lock_until?: Day | null; rental_rate?: string | null; created_at?: string; damaged_quantity?: number; damage_price?: string; note?: string };
+export type Movement = { id: string; item_id: string; site_name?:string; date: Day; type: 'DISPATCH' | 'RETURN'; quantity: number; lock_until?: Day | null; rental_rate?: string | null; created_at?: string; damaged_quantity?: number; damage_price?: string; note?: string };
 export type Delta = { date: Day; qty: number };
 export type Rate = { effective_from: Day; rate: string };
 export type Segment = { start: Day; end: Day; quantity: number; days: number; formula: string; rate?: string; amount?: string };
@@ -22,7 +22,7 @@ export function net(deltas: Delta[]): Delta[] {
 }
 export function timelines(movements: Movement[], asOf = today()) {
   const physical: Delta[] = [], billable: Delta[] = [];
-  const lots: { id: string; dispatch_date: Day; lock_until: Day; original: number; physical: number; billable: number }[] = [];
+  const lots: { id: string; site_name:string; dispatch_date: Day; lock_until: Day; original: number; physical: number; billable: number }[] = [];
   const allocations: { return_id: string; lot_id: string; quantity: number; return_date: Day; billing_date: Day }[] = [];
   const sorted = [...movements].sort((a, b) => a.date.localeCompare(b.date) || (a.created_at || '').localeCompare(b.created_at || '') || a.id.localeCompare(b.id));
   for (const m of sorted) {
@@ -30,14 +30,15 @@ export function timelines(movements: Movement[], asOf = today()) {
     if (!Number.isSafeInteger(m.quantity) || m.quantity <= 0) throw new Error('Quantity must be a positive whole number.');
     if (m.type === 'DISPATCH') {
       const lock = m.lock_until || m.date;
-      lots.push({ id: m.id, dispatch_date: m.date, lock_until: lock, original: m.quantity, physical: m.quantity, billable: m.quantity });
+      lots.push({ id: m.id, site_name:m.site_name||'', dispatch_date: m.date, lock_until: lock, original: m.quantity, physical: m.quantity, billable: m.quantity });
       physical.push({ date: m.date, qty: m.quantity }); billable.push({ date: m.date, qty: m.quantity });
     } else {
-      const available = lots.reduce((s, l) => s + l.physical, 0);
+      const siteLots=lots.filter(l=>l.site_name===(m.site_name||''));
+      const available = siteLots.reduce((s, l) => s + l.physical, 0);
       if (m.quantity > available) throw new MovementValidationError(`Cannot return ${m.quantity}, only ${available} currently on hire on ${m.date}.`);
       physical.push({ date: m.date, qty: -m.quantity });
       let remaining = m.quantity;
-      for (const lot of lots) {
+      for (const lot of siteLots) {
         const consumed = Math.min(remaining, lot.physical);
         if (!consumed) continue;
         lot.physical -= consumed; remaining -= consumed;

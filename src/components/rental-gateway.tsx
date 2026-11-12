@@ -4,7 +4,7 @@ import {ArrowUpRight,ArrowDownLeft,Building2,ChevronRight,FileText,PackageCheck,
 type Row=Record<string,any>;
 export default function RentalGateway({data,onNavigate,onCreate}:{data:Row;onNavigate:(view:string)=>void;onCreate:(kind:string,record?:Row)=>void}){
  const menuRef=useRef<HTMLElement>(null);
- const [selected,setSelected]=useState('New dispatch');
+ const [selected,setSelected]=useState('New outward challan');
  useEffect(()=>{
   const handleKey=(event:KeyboardEvent)=>{
    if(event.defaultPrevented||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
@@ -37,8 +37,8 @@ export default function RentalGateway({data,onNavigate,onCreate}:{data:Row;onNav
  const amount=(n:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(n);
  const menus=[
   {label:'MASTERS',items:[{label:'Customers',detail:'Party profiles',icon:Users,run:()=>onNavigate('Customers')},{label:'Item master',detail:'Materials & rates',icon:Boxes,run:()=>onNavigate('Item Master')},{label:'Chart of accounts',detail:'Ledgers & groups',icon:Wallet,href:'/rental/accounting?view=ledgers'}]},
-  {label:'TRANSACTIONS',items:[{label:'New dispatch',detail:'Material outward',icon:ArrowUpRight,run:()=>onCreate('movement',{type:'DISPATCH'}),primary:true},{label:'Record return',detail:'Material inward',icon:ArrowDownLeft,run:()=>onCreate('movement',{type:'RETURN'})},{label:'Payment / receipt',detail:'Accounting vouchers',icon:Wallet,href:'/rental/accounting?view=daybook&create=receipt'},{label:'Generate invoice',detail:'Rental billing',icon:FileText,run:()=>onCreate('invoice')}]},
-  {label:'REPORTS',items:[{label:'Material ledger',detail:'Issued, received & pending',icon:PackageCheck,run:()=>onNavigate('Customer Ledger')},{label:'Party ledger',detail:'Payments & balances',icon:FileText,href:'/rental/accounting?view=ledger'},{label:'Dispatch & returns',detail:'Movement history',icon:Truck,run:()=>onNavigate('Dispatch & Returns')}]}
+  {label:'TRANSACTIONS',items:[{label:'New outward challan',detail:'Material outward',icon:ArrowUpRight,run:()=>onCreate('movement',{type:'DISPATCH'}),primary:true},{label:'New inward challan',detail:'Material inward',icon:ArrowDownLeft,run:()=>onCreate('movement',{type:'RETURN'})},{label:'Payment / receipt',detail:'Accounting vouchers',icon:Wallet,href:'/rental/accounting?view=daybook&create=receipt'},{label:'Generate invoice',detail:'Rental billing',icon:FileText,run:()=>onCreate('invoice')}]},
+  {label:'REPORTS',items:[{label:'Material ledger',detail:'Issued, received & pending',icon:PackageCheck,run:()=>onNavigate('Customer Ledger')},{label:'Party ledger',detail:'Payments & balances',icon:FileText,href:'/rental/accounting?view=ledger'},{label:'Challan Management',detail:'Movement history',icon:Truck,run:()=>onNavigate('Challan Management')}]}
  ];
  return <>
  <div className="gateway-layout">

@@ -4,6 +4,9 @@
 .erp-wrapper .movement-print:hover{background:#e6f0fb;border-color:#89acd1}
 .erp-wrapper .movement-print:focus-visible{outline:2px solid #32689e;outline-offset:3px}
 .erp-wrapper .movement-row-actions .movement-edit{min-height:48px;white-space:nowrap;margin:0}
+.erp-wrapper .challan-items summary{cursor:pointer;color:#2d6094;padding:10px 0;min-height:44px;white-space:nowrap}
+.erp-wrapper .challan-item{padding:12px 0;border-bottom:1px solid #dce5ef;min-width:180px}
+.erp-wrapper .challan-item:last-child{border-bottom:0}
 .erp-wrapper .rental-internal .page-heading{align-items:flex-start;gap:20px;margin-bottom:24px;flex-wrap:wrap}
 .erp-wrapper .rental-internal .heading-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .erp-wrapper .rental-internal .panel{min-width:0;overflow:hidden;margin-bottom:20px}
@@ -40,3 +43,24 @@
  .erp-wrapper .a-app .m-row-actions{width:100%}
  .erp-wrapper .rental-internal :is(th,td){padding:12px}
 }
+.erp-wrapper .challan-view-switch{display:flex;justify-content:flex-end;gap:8px;margin:0 0 18px}
+.erp-wrapper .challan-view-switch button[aria-pressed="true"]{background:#32669b;color:#fff;border-color:#32669b}
+.erp-wrapper .challan-browser-heading{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:24px;flex-wrap:wrap}
+.erp-wrapper .challan-breadcrumb{display:flex;align-items:center;gap:16px;min-width:0}
+.erp-wrapper .challan-breadcrumb h2{margin:0 0 6px;overflow-wrap:anywhere}
+.erp-wrapper .challan-breadcrumb p{margin:0;color:#7186a0}
+.erp-wrapper .challan-calendar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.erp-wrapper .challan-calendar input{width:165px;min-height:44px;border:1px solid #cbdcf0;border-radius:7px;padding:8px;background:white;color:#294d73}
+.erp-wrapper .challan-grid-search{display:flex;gap:12px;padding:0 24px 24px}
+.erp-wrapper .challan-grid-search label{display:flex;align-items:center;gap:10px;flex:1;border:1px solid #cbdcf0;border-radius:8px;padding:0 14px;color:#7186a0;min-width:0}
+.erp-wrapper .challan-grid-search input{border:0;background:transparent;width:100%;min-height:46px;outline-offset:2px;color:#294d73}
+.erp-wrapper .challan-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;padding:0 24px 24px}
+.erp-wrapper .challan-browser-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:12px;padding:22px;min-height:190px;border:1px solid #d6e3f1;border-radius:12px;background:#f8fbff;color:#294d73;cursor:pointer;overflow-wrap:anywhere}
+.erp-wrapper .challan-browser-card:hover{border-color:#6697c7;background:#edf5ff;box-shadow:0 4px 14px #244a7710}
+.erp-wrapper .challan-browser-card:focus-visible{outline:3px solid #32669b;outline-offset:3px}
+.erp-wrapper .challan-browser-card strong{font-size:16px;line-height:1.45}
+.erp-wrapper .challan-card-icon{display:flex;padding:10px;background:#e5effb;border-radius:10px;color:#32669b}
+.erp-wrapper .challan-card-footer{display:flex;justify-content:space-between;width:100%;margin-top:auto;padding-top:14px;border-top:1px solid #dce7f3;font-size:13px}
+.erp-wrapper .challan-grid-count{padding:0 24px 18px;color:#7186a0}
+.erp-wrapper .challan-grid-empty{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:48px 24px;color:#7186a0}
+@media(max-width:600px){.erp-wrapper .challan-browser-heading{padding:18px}.erp-wrapper .challan-card-grid{padding:0 18px 18px;grid-template-columns:1fr}.erp-wrapper .challan-grid-search{padding:0 18px 18px}.erp-wrapper .challan-view-switch button{min-height:48px}.erp-wrapper .challan-calendar{width:100%}}

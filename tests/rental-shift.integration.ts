@@ -37,6 +37,27 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  const {challanExport}=await import('../src/rental/challan-export');assert.ok((await challanExport(batchRows[0].id)).bytes.length>1000);
  const {movementExport:filteredExport}=await import('../src/rental/movement-export');const filtered=await filteredExport(new URLSearchParams({start:'2026-01-01',end:'2026-01-02',format:'xlsx',customer:newParty.id,challan:batch.reference}));assert.ok(filtered.bytes.length>1000);
  console.log('PASS: customer-linked multi-item challan, optional vehicle, generated number and filtered exports.');
+ const {loadChallan}=await import('../src/rental/challan-export');
+ assert.equal((await loadChallan(batchRows[0].id)).rows.length,2);
+ const siteCustomer=await s.saveCustomer({name:'Multi-site customer',locking_days:0,sites:['Site A','Site B']});
+ await assert.rejects(s.saveCustomer({name:'Duplicate site',locking_days:0,sites:['Site A','site a']}),/unique/);
+ const sitePayload={customer_id:siteCustomer.id,date:'2026-01-01',type:'DISPATCH',reference:'SITE-001',lines:[{item_id:item.id,quantity:10},{item_id:otherItem.id,quantity:5}]};
+ await assert.rejects(s.saveMovement(sitePayload),/Select a valid customer site/);
+ await assert.rejects(s.saveMovement({...sitePayload,site_name:'Unrelated site'}),/valid customer site/);
+ const siteBatch=await s.saveMovement({...sitePayload,site_name:'Site A'});
+ await s.saveMovement({...sitePayload,reference:'SITE-002',site_name:'Site B',lines:[{item_id:item.id,quantity:2}]});
+ await assert.rejects(s.saveMovement({...sitePayload,type:'RETURN',date:'2026-01-02',site_name:'Site B',lines:[{item_id:item.id,quantity:3}]}),/only 2/);
+ await s.saveMovement({...sitePayload,type:'RETURN',date:'2026-01-02',site_name:'Site A',lines:[{item_id:item.id,quantity:3}]});
+ const siteRows=(await pool.query('SELECT * FROM movements WHERE challan_id=$1',[siteBatch.challan_id])).rows;
+ const printed=await loadChallan(siteRows[0].id);assert.equal(printed.rows.length,2);assert.ok(printed.rows.every(r=>r.site_name==='Site A'));
+ await assert.rejects(s.saveCustomer({id:siteCustomer.id,name:'Multi-site customer',locking_days:0,sites:['Site B']}),/cannot be removed/);
+ // A legacy multi-item challan is printable together without changing its IDs.
+ await pool.query('UPDATE movements SET challan_id=NULL WHERE challan_id=$1',[siteBatch.challan_id]);
+ assert.equal((await loadChallan(siteRows[1].id)).rows.length,2);
+ // Adding sites later does not strand existing unassigned stock.
+ await s.saveCustomer({id:newParty.id,name:'New challan customer',locking_days:0,sites:['New site']});
+ await s.saveMovement({customer_id:newParty.id,date:'2026-01-03',type:'RETURN',legacy_site:true,lines:[{item_id:otherItem.id,quantity:1}]});
+ console.log('PASS: optional sites, required valid site selection, site-isolated returns, protected used sites and full modern/legacy challan printing.');
 
  const {correctMovement}=await import('../src/rental/movement-corrections');
  const correctionCustomer=await s.saveCustomer({name:'Correction test',locking_days:10});
@@ -76,7 +97,7 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  const quote=(await pool.query('SELECT * FROM quotations WHERE id=$1',[quotation.id])).rows[0];
  assert.equal(quote.snapshot.reference,'TEST/Q1');assert.equal(quote.snapshot.lines[0].daily_total,'20.00');assert.equal(quote.snapshot.gst_percent,18);
  console.log('PASS: date/type/search-filtered PDF/Excel history and saved quotation financial fields.');
- const invoice:any=await s.createInvoice({customer_id:customer.id,period_start:'2026-01-01',period_end:'2026-01-31',gst_percent:0,notes:'',document_details:{payment_terms:'Within 15 days',tax_mode:'CGST_SGST'}});await a.saveAccountingSettings(owner,{company_name:'Jyoti Scaffold Private Limited',financial_year_start:'2026-01-01',closed_through:''});await s.finalizeInvoice(invoice.id,owner);assert.equal((await pool.query('SELECT snapshot FROM invoices WHERE id=$1',[invoice.id])).rows[0].snapshot.document_details.payment_terms,'Within 15 days');const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});await a.saveAccountingSettings(owner,{company_name:'Jyoti Scaffold Private Limited',financial_year_start:'2026-01-01',closed_through:''});const bank=await a.saveLedger(owner,{name:'Bank',group_name:'Bank Accounts',party_details:{},is_active:true});const receipt={id:randomUUID(),type:'Receipt',date:today,narration:'Invoice payment',lines:[{ledger_id:bank.id,debit:10,credit:0},{ledger_id:ledger.id,debit:0,credit:10}],details:{receipt_invoice_id:invoice.id}};await a.postVoucher(owner,receipt);assert.equal((await a.postVoucher(owner,receipt)).repeated,true);await assert.rejects(a.postVoucher(owner,{...receipt,id:randomUUID(),lines:[{ledger_id:bank.id,debit:999999,credit:0},{ledger_id:ledger.id,debit:0,credit:999999}]}),/exceeds/);const reversed={id:randomUUID(),type:'Journal',date:today,narration:'Reverse payment',reverses_id:receipt.id,lines:receipt.lines.map(l=>({...l,debit:l.credit,credit:l.debit}))};await a.postVoucher(owner,reversed);assert.equal((await pool.query("SELECT count(*) n FROM rental_acc_vouchers v WHERE v.details->>'receipt_invoice_id'=$1 AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id)",[invoice.id])).rows[0].n,'0');
+ const invoice:any=await s.createInvoice({customer_id:customer.id,period_start:'2026-01-01',period_end:'2026-01-31',gst_percent:0,notes:'',document_details:{payment_terms:'Within 15 days',tax_mode:'CGST_SGST'}});await a.saveAccountingSettings(owner,{company_name:'Jyoti Scaffold Private Limited',financial_year_start:'2026-01-01',closed_through:''});const beforeSites=(await pool.query('SELECT snapshot,grand_total FROM invoices WHERE id=$1',[invoice.id])).rows[0];await pool.query('UPDATE customers SET sites=$2 WHERE id=$1',[customer.id,JSON.stringify(['Future site'])]);await s.finalizeInvoice(invoice.id,owner);assert.deepEqual((await pool.query('SELECT snapshot,grand_total FROM invoices WHERE id=$1',[invoice.id])).rows[0],beforeSites);console.log('PASS: adding customer sites preserves saved invoice snapshot, total and finalization.');assert.equal((await pool.query('SELECT snapshot FROM invoices WHERE id=$1',[invoice.id])).rows[0].snapshot.document_details.payment_terms,'Within 15 days');const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});await a.saveAccountingSettings(owner,{company_name:'Jyoti Scaffold Private Limited',financial_year_start:'2026-01-01',closed_through:''});const bank=await a.saveLedger(owner,{name:'Bank',group_name:'Bank Accounts',party_details:{},is_active:true});const receipt={id:randomUUID(),type:'Receipt',date:today,narration:'Invoice payment',lines:[{ledger_id:bank.id,debit:10,credit:0},{ledger_id:ledger.id,debit:0,credit:10}],details:{receipt_invoice_id:invoice.id}};await a.postVoucher(owner,receipt);assert.equal((await a.postVoucher(owner,receipt)).repeated,true);await assert.rejects(a.postVoucher(owner,{...receipt,id:randomUUID(),lines:[{ledger_id:bank.id,debit:999999,credit:0},{ledger_id:ledger.id,debit:0,credit:999999}]}),/exceeds/);const reversed={id:randomUUID(),type:'Journal',date:today,narration:'Reverse payment',reverses_id:receipt.id,lines:receipt.lines.map(l=>({...l,debit:l.credit,credit:l.debit}))};await a.postVoucher(owner,reversed);assert.equal((await pool.query("SELECT count(*) n FROM rental_acc_vouchers v WHERE v.details->>'receipt_invoice_id'=$1 AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers r WHERE r.reverses_id=v.id)",[invoice.id])).rows[0].n,'0');
 
  const invoiceA=randomUUID(),invoiceB=randomUUID();
  const {deleteRecord}=await import('../src/rental/delete-record');
@@ -129,6 +150,15 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  const {partyStatement}=await import('../src/rental/party-ledger');
  const {partyExport}=await import('../src/rental/party-export');
  const {saveFormat,loadFormats}=await import('../src/rental/ledger-format-service');
+ const {defaultChallanFormat}=await import('../src/rental/challan-format');
+ const beforeChallanSettings=(await pool.query('SELECT id,snapshot,grand_total FROM invoices ORDER BY id')).rows;
+ await assert.rejects(saveFormat({...owner,role:'RENTAL_STAFF'},{module:'challan',settings:defaultChallanFormat()}),/Only the owner/);
+ await assert.rejects(saveFormat(owner,{module:'challan',settings:{...defaultChallanFormat(),font_size:99}}));
+ await saveFormat(owner,{module:'challan',settings:{...defaultChallanFormat(),heading:'Custom challan heading',layout:'compact',footer:'Received in good condition'}});
+ assert.equal((await loadFormats()).challan.heading,'Custom challan heading');
+ assert.deepEqual((await pool.query('SELECT id,snapshot,grand_total FROM invoices ORDER BY id')).rows,beforeChallanSettings);
+ const customPdf=await challanExport(siteRows[0].id);assert.ok(customPdf.bytes.length>1000);
+ console.log('PASS: owner-only challan formats persist, print successfully and leave invoice records unchanged.');
  const {defaultFormat}=await import('../src/rental/ledger-formats');
  const statement=partyStatement((await a.accountingState()).vouchers,ledger.id,'1900-01-01',today);
  const direct=(await pool.query("SELECT sum((l->>'debit')::numeric-(l->>'credit')::numeric) n FROM rental_acc_vouchers v CROSS JOIN LATERAL jsonb_array_elements(v.lines) l WHERE l->>'ledger_id'=$1",[ledger.id])).rows[0].n;
