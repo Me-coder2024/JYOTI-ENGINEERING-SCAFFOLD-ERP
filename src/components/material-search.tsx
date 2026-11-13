@@ -1,0 +1,12 @@
+'use client';
+import {useEffect,useId,useState} from 'react';
+type Item={id:string;name:string};
+export default function MaterialSearch({items,value,onChange,onCreate}:{items:Item[];value:string;onChange:(id:string)=>void;onCreate?:()=>void}){
+ const id=useId(),selected=items.find(i=>i.id===value);
+ const [query,setQuery]=useState(selected?.name||''),[open,setOpen]=useState(false),[active,setActive]=useState(0);
+ useEffect(()=>{if(selected)setQuery(selected.name);},[value,selected?.name]);
+ const words=query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+ const matches=items.filter(i=>words.every(word=>i.name.toLowerCase().includes(word))).sort((a,b)=>Number(b.name.toLowerCase().startsWith(query.toLowerCase()))-Number(a.name.toLowerCase().startsWith(query.toLowerCase()))||a.name.localeCompare(b.name));
+ function choose(item:Item){setQuery(item.name);onChange(item.id);setOpen(false);}
+ return <div className="field material-search" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setOpen(false);}}><label htmlFor={id}>Item <span aria-hidden="true" style={{color:'#b42318'}}>*</span></label><input id={id} role="combobox" aria-required="true" aria-autocomplete="list" aria-expanded={open} aria-controls={id+'-list'} aria-activedescendant={open&&matches[active]?id+'-'+active:undefined} autoComplete="off" value={query} placeholder="Type to search materials…" onFocus={()=>{setOpen(true);setActive(0);}} onChange={e=>{setQuery(e.target.value);setActive(0);setOpen(true);if(value)onChange('');}} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();setOpen(true);setActive(n=>Math.max(0,Math.min(matches.length-1,n+(e.key==='ArrowDown'?1:-1))));}else if(e.key==='Enter'&&open){e.preventDefault();if(matches[active])choose(matches[active]);else if(onCreate){setOpen(false);onCreate();}}else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setOpen(false);}}}/>{open&&<div className="material-search-menu"><div id={id+'-list'} role="listbox" aria-label="Materials">{matches.map((item,i)=><div key={item.id} id={id+'-'+i} role="option" aria-selected={active===i} className={active===i?'active':''} onMouseDown={e=>e.preventDefault()} onMouseEnter={()=>setActive(i)} onClick={()=>choose(item)}>{item.name}</div>)}</div>{!matches.length&&<div className="material-search-empty"><p>No material found for “{query}”.</p>{onCreate&&<button type="button" className="secondary" onClick={()=>{setOpen(false);onCreate();}}>+ Add new item</button>}</div>}</div>}</div>;
+}

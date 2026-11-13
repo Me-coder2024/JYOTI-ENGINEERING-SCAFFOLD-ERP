@@ -109,7 +109,7 @@ export async function saveMovement(input: unknown, preview=false) {
    return {previews,reference,challan_id:challanId};
  }, preview);
 }
-const invoiceSchema=z.object({customer_id:uuid,period_start:date,period_end:date,gst_percent:z.coerce.number().min(0).max(100),notes:text.default(''),document_details:z.object({ship_to:text.max(2000).default(''),delivery_note:text.max(200).default(''),delivery_date:z.union([date,z.literal('')]).default(''),payment_terms:text.max(200).default(''),reference:text.max(200).default(''),dispatch_document:text.max(200).default(''),dispatched_through:text.max(200).default(''),destination:text.max(200).default(''),lr_number:text.max(200).default(''),vehicle_no:text.max(200).default(''),delivery_terms:text.max(1000).default(''),place_of_supply:text.max(200).default(''),tax_mode:z.enum(['GST','CGST_SGST','IGST']).default('GST')}).optional()});
+const invoiceSchema=z.object({site_name:z.string().trim().max(200).optional(),customer_id:uuid,period_start:date,period_end:date,gst_percent:z.coerce.number().min(0).max(100),notes:text.default(''),document_details:z.object({ship_to:text.max(2000).default(''),delivery_note:text.max(200).default(''),delivery_date:z.union([date,z.literal('')]).default(''),payment_terms:text.max(200).default(''),reference:text.max(200).default(''),dispatch_document:text.max(200).default(''),dispatched_through:text.max(200).default(''),destination:text.max(200).default(''),lr_number:text.max(200).default(''),vehicle_no:text.max(200).default(''),delivery_terms:text.max(1000).default(''),place_of_supply:text.max(200).default(''),tax_mode:z.enum(['GST','CGST_SGST','IGST']).default('GST')}).optional()});
 async function calculateInvoice(db: PoolClient, input: unknown) {
  const d=invoiceSchema.parse(input);
  if(d.period_start>d.period_end) throw new Error('Period start must be before period end.');
@@ -118,24 +118,25 @@ async function calculateInvoice(db: PoolClient, input: unknown) {
  if(!customer) throw new Error('Customer not found.');
  // Site administration is challan metadata, not a change to invoice billing data.
  // Keep pre-existing draft snapshots comparable after the additive migration.
+ if(d.site_name&&!customer.sites?.includes(d.site_name))throw new Error('Select a valid customer site.');
  delete customer.sites;
  const company=(await db.query('SELECT * FROM company WHERE id=1')).rows[0];
  const items=(await db.query('SELECT DISTINCT i.* FROM items i JOIN movements m ON i.id=m.item_id WHERE m.customer_id=$1 ORDER BY i.name',[d.customer_id])).rows;
  const lines: Record<string,unknown>[] = [], damages: Record<string,unknown>[] = [];
  for(const item of items) {
-   const ms=(await db.query('SELECT * FROM movements WHERE customer_id=$1 AND item_id=$2 ORDER BY date,created_at,id',[d.customer_id,item.id])).rows.map(m=>({...m,created_at:m.created_at.toISOString()}));
+   const ms=(await db.query('SELECT * FROM movements WHERE customer_id=$1 AND item_id=$2 AND ($3::text IS NULL OR site_name=$3) ORDER BY date,created_at,id',[d.customer_id,item.id,d.site_name??null])).rows.map(m=>({...m,created_at:m.created_at.toISOString()}));
    const rates=(await db.query('SELECT * FROM rates WHERE item_id=$1 ORDER BY effective_from',[item.id])).rows;
    for(const s of rentalSegments(ms,d.period_start,d.period_end,rates)) lines.push({...s,item_id:item.id,name:item.name,hsn:item.hsn});
    for(const m of ms) if(m.date>=d.period_start && m.date<=d.period_end && m.damaged_quantity>0) damages.push({movement_id:m.id,item_id:item.id,name:item.name,date:m.date,quantity:m.damaged_quantity,price:m.damage_price,amount:damageAmount(m.damaged_quantity,m.damage_price)});
  }
  if(!lines.length&&!damages.length) throw new Error('There are no billable items or damage charges in this period.');
- return {...d,billing_scope:'company',company,customer,lines,damages,...totals(lines.map(l=>String(l.amount)),damages.map(l=>String(l.amount)),String(d.gst_percent))};
+ return {...d,billing_scope:d.site_name===undefined?'company':'site',company,customer,lines,damages,...totals(lines.map(l=>String(l.amount)),damages.map(l=>String(l.amount)),String(d.gst_percent))};
 }
 export async function createInvoice(input:unknown,preview=false) {
  return transaction(async db=> {
    await db.query('SELECT pg_advisory_xact_lock(914712)');
    const s=await calculateInvoice(db,input);
-   const overlap=await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start <= $3 AND period_end >= $2`,[s.customer_id,s.period_start,s.period_end]);
+   const overlap=await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start <= $3 AND period_end >= $2 AND ($4='company' OR snapshot->>'billing_scope'='company' OR COALESCE(snapshot->>'site_name','')=$5)`,[s.customer_id,s.period_start,s.period_end,s.billing_scope,s.site_name||'']);
    if(overlap.rows.length) throw new Error(`This period overlaps finalized invoice ${overlap.rows[0].invoice_no}.`);
    if(preview) return s;
    const n=(await db.query("SELECT nextval('invoice_number') AS n")).rows[0].n;
@@ -153,7 +154,7 @@ export async function finalizeInvoice(id:string,user:User) {
    const invoice=(await db.query('SELECT * FROM invoices WHERE id=$1 FOR UPDATE',[id])).rows[0];
    if(!invoice) throw new Error('Invoice not found.');
    if(invoice.status==='FINAL') {await postInvoice(db,user,invoice);return {id};}
-   const overlap=(await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start<=$3 AND period_end>=$2`,[invoice.customer_id,invoice.period_start,invoice.period_end])).rows;
+   const overlap=(await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start<=$3 AND period_end>=$2 AND ($4='company' OR snapshot->>'billing_scope'='company' OR COALESCE(snapshot->>'site_name','')=$5)`,[invoice.customer_id,invoice.period_start,invoice.period_end,invoice.snapshot.billing_scope||'company',invoice.snapshot.site_name||''])).rows;
    if(overlap.length) throw new Error(`Period overlaps ${overlap[0].invoice_no}.`);
    const fresh=await calculateInvoice(db,{...invoice,site_name:invoice.snapshot.site_name,document_details:invoice.snapshot.document_details});
    if(!invoice.snapshot.billing_scope)delete (fresh as any).billing_scope;
@@ -175,7 +176,7 @@ export async function updateInvoice(id:string,input:unknown) {
    if(!old) throw new Error('Invoice not found.');
    if(old.status==='FINAL') throw new Error('Final invoices are locked. Use a credit/debit note.');
    const s=await calculateInvoice(db,input);
-   const overlap=(await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start<=$3 AND period_end>=$2`,[s.customer_id,s.period_start,s.period_end])).rows;
+   const overlap=(await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start<=$3 AND period_end>=$2 AND ($4='company' OR snapshot->>'billing_scope'='company' OR COALESCE(snapshot->>'site_name','')=$5)`,[s.customer_id,s.period_start,s.period_end,s.billing_scope,s.site_name||''])).rows;
    if(overlap.length) throw new Error(`Period overlaps finalized invoice ${overlap[0].invoice_no}.`);
    await db.query(`UPDATE invoices SET customer_id=$2,period_start=$3,period_end=$4,gst_percent=$5,snapshot=$6,rental_total=$7,damage_total=$8,subtotal=$9,gst_amount=$10,grand_total=$11,notes=$12 WHERE id=$1`,[id,s.customer_id,s.period_start,s.period_end,s.gst_percent,JSON.stringify(s),s.rental_total,s.damage_total,s.subtotal,s.gst_amount,s.grand_total,s.notes]);
    await audit(db,'INVOICE_DRAFT_UPDATE',id,s);return {id};

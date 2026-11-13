@@ -201,6 +201,9 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  await s.saveMovement({...move,site_name:'Gujarat',lines:[{item_id:item.id,quantity:5,rental_rate:3}]});
  await assert.rejects(s.createInvoice(bill),/overlap/i);
  const nextBill={...bill,period_start:'2026-09-01',period_end:'2026-09-30'};
+ assert.equal(Number((await s.createInvoice({...nextBill,site_name:'Odisha'},true) as any).grand_total),600);
+ assert.equal(Number((await s.createInvoice({...nextBill,site_name:'Gujarat'},true) as any).grand_total),450);
+ assert.equal(Number((await s.createInvoice({...nextBill,site_name:''},true) as any).grand_total),30000);
  const combined:any=await s.createInvoice(nextBill);
  const snap=(await pool.query('SELECT snapshot FROM invoices WHERE id=$1',[combined.id])).rows[0].snapshot;
  assert.equal(snap.billing_scope,'company');assert.equal(Number(snap.grand_total),31050);
@@ -220,6 +223,12 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  const withAdvance=await s.state();assert.equal(Number(withAdvance.company_financials.find((f:any)=>f.customer_id===multi.id)?.balance),61700);
  assert.equal(withAdvance.invoices.filter((i:any)=>i.customer_id===multi.id).reduce((n:number,i:any)=>n+Number(i.paid),0),300);
  console.log('PASS: combined invoice includes legacy and both sites, carry-forward rent, historical invoices unchanged, duplicate billing blocked and company payments counted once.');
+ const october={...bill,period_start:'2026-10-01',period_end:'2026-10-31'};
+ const siteOnly:any=await s.createInvoice({...october,site_name:'Odisha'});await s.finalizeInvoice(siteOnly.id,owner);
+ await assert.rejects(s.createInvoice(october),/overlap/i);
+ await assert.rejects(s.createInvoice({...october,site_name:'Odisha'}),/overlap/i);
+ assert.equal(Number((await s.createInvoice({...october,site_name:'Gujarat'},true) as any).grand_total),465);
+ console.log('PASS: all-sites, named-site and legacy-only choices; site invoice blocks duplicate combined billing but permits another site.');
  if(process.argv.includes('--http')){
  const auth=await import('../src/shared/auth-server');await pool.query('UPDATE erp_users SET password_hash=$1 WHERE id=$2',[await auth.passwordHash('OnlyForLocalTest123'),owner.id]);
  server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','3012'],{env:{...process.env,GST_LOOKUP_DISABLED:'1',SESSION_SECRET:'isolated-local-test-secret-at-least-32-characters'},stdio:'ignore',windowsHide:true});

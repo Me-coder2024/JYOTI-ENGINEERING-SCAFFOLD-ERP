@@ -1,4 +1,5 @@
 'use client';
+import MaterialSearch from './material-search';
 import {customerLabel} from '@/rental/customer-identity';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRight, Plus, X } from 'lucide-react';
@@ -53,8 +54,7 @@ export function loadDraft(type:string):DraftState|null{
   if(typeof window==='undefined'||typeof localStorage==='undefined') return null;
   const raw=localStorage.getItem(draftKey(type));if(!raw) return null;
   const draft=JSON.parse(raw) as DraftState;
-  // Discard drafts older than 24 hours or without meaningful data
-  if(Date.now()-draft.savedAt>86400000){localStorage.removeItem(draftKey(type));return null;}
+  // Keep unfinished challans until explicitly discarded or successfully saved.
   if(!hasDraftContent(draft)){localStorage.removeItem(draftKey(type));return null;}
   return draft;
  }catch{return null;}
@@ -67,11 +67,25 @@ export function clearMovementDraft(type:string){
  }catch{}
 }
 
-export default function MovementForm({data,initial,busy,onSave,renderCreate}:{data:RecordData;initial:RecordData;busy:boolean;onSave:(value:RecordData)=>Promise<boolean>;renderCreate?:(kind:string,done:(id:string)=>void)=>ReactNode}) {
+type MovementProps={data:RecordData;initial:RecordData;busy:boolean;onSave:(value:RecordData)=>Promise<boolean>;renderCreate?:(kind:string,done:(id:string)=>void)=>ReactNode};
+export function listMovementDrafts(type:string){
+ const drafts:{slot:string;draft:DraftState}[]=[];
+ if(typeof window==='undefined')return drafts;
+ try{for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&(key===draftKey(type)||key.startsWith(draftKey(type)+':'))){const slot=key.slice(DRAFT_KEY_PREFIX.length),draft=loadDraft(slot);if(draft)drafts.push({slot,draft});}}}catch{}
+ return drafts.sort((a,b)=>b.draft.savedAt-a.draft.savedAt);
+}
+export default function MovementForm(props:MovementProps){
+ const [drafts,setDrafts]=useState(()=>listMovementDrafts(props.initial.type));
+ const [slot,setSlot]=useState(()=>drafts[0]?.slot||props.initial.type+':'+crypto.randomUUID());
+ const [showDrafts,setShowDrafts]=useState(false);
+ const refresh=()=>setDrafts(listMovementDrafts(props.initial.type));
+ return <><section className="form-section" aria-label="Challan drafts"><div className="row-actions" style={{display:'flex',flexWrap:'wrap',gap:12}}><button type="button" className="secondary" disabled={props.busy} onClick={()=>{refresh();setSlot(props.initial.type+':'+crypto.randomUUID());setShowDrafts(false);}}>Start new challan</button><button type="button" className="secondary" disabled={props.busy} onClick={()=>{refresh();setShowDrafts(v=>!v);}}>Saved challan drafts</button></div><p>Starting a new challan keeps your unfinished drafts on this browser. Saving one challan removes only its own draft.</p>{showDrafts&&<div>{drafts.length?drafts.map(({slot:id,draft})=><div key={id} className="row-actions" style={{display:'flex',gap:12,alignItems:'center',marginTop:12}}><span style={{flex:1}}>{draft.reference||'Unnumbered challan'} · {props.data.customers.find((c:RecordData)=>c.id===draft.customer)?.name||'Customer not selected'} · {draft.site||'Legacy / Unassigned'}<small> {new Date(draft.savedAt).toLocaleString()}</small></span><button type="button" className="secondary" disabled={props.busy} onClick={()=>{setSlot(id);setShowDrafts(false);}}>Continue draft</button></div>):<p>No saved drafts.</p>}</div>}</section><MovementEditor key={slot} {...props} draftSlot={slot}/></>;
+}
+function MovementEditor({data,initial,busy,onSave,renderCreate,draftSlot}:{data:RecordData;initial:RecordData;busy:boolean;onSave:(value:RecordData)=>Promise<boolean>;renderCreate?:(kind:string,done:(id:string)=>void)=>ReactNode;draftSlot:string}) {
  const isReturn=initial.type==='RETURN';
 
  // ── Restore draft on mount ──
- const draft=useRef(loadDraft(initial.type));
+ const draft=useRef(loadDraft(draftSlot));
  const hasDraft=draft.current!==null;
  const restored=draft.current;
 
@@ -85,6 +99,7 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
  const [reference,setReference]=useState(restored?.reference||'');
  const [vehicle,setVehicle]=useState(restored?.vehicle||'');
  const [creating,setCreating]=useState('');
+ const createItemRow=useRef<number|null>(null);
  const [preview,setPreview]=useState<RecordData|null>(null);
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(false);
@@ -98,14 +113,14 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
  // ── Auto-save draft on every change ──
  useEffect(()=>{
   if(savedSuccessfullyRef.current) return;
-  saveDraft(initial.type,{customer,date,lines,note,reference,vehicle,site});
+  saveDraft(draftSlot,{customer,date,lines,note,reference,vehicle,site});
  },[initial.type,customer,date,lines,note,reference,vehicle,site]);
 
  // ── Flush latest state on unmount if user navigated or clicked away ──
  useEffect(()=>{
   return()=>{
    if(!savedSuccessfullyRef.current){
-    saveDraft(initial.type,latestStateRef.current);
+    saveDraft(draftSlot,latestStateRef.current);
    }
   };
  },[initial.type]);
@@ -148,7 +163,8 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
   if(!isReturn) setLines(current=>current.map(l=>l.custom_rate?l:{...l,rental_rate:standardRate(l.item_id,value)}));
  }
  function discardDraft(){
-  clearMovementDraft(initial.type);
+  if(!window.confirm('Discard this challan draft? Other drafts will be kept.'))return;
+  clearMovementDraft(draftSlot);
   setCustomer(initial.customer_id||'');setSite('');
   setDate(data.today);
   setLines([emptyLine()]);
@@ -161,18 +177,18 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
    savedSuccessfullyRef.current=true;
    try{
     const saved=await onSave(payload);
-    if(saved)clearMovementDraft(initial.type);
+    if(saved)clearMovementDraft(draftSlot);
     else{
      savedSuccessfullyRef.current=false;
-     saveDraft(initial.type,{customer,date,lines,note,reference,vehicle,site});
+     saveDraft(draftSlot,{customer,date,lines,note,reference,vehicle,site});
     }
    }catch{
     savedSuccessfullyRef.current=false;
-    saveDraft(initial.type,{customer,date,lines,note,reference,vehicle,site});
+    saveDraft(draftSlot,{customer,date,lines,note,reference,vehicle,site});
    }
   }
  }
- return <>{creating&&renderCreate&&<section className="form-section"><h3>Create {creating}</h3><button type="button" className="secondary" onClick={()=>setCreating('')}>Back to challan</button>{renderCreate(creating,id=>{if(creating==='customer'){setCustomer(id);setSite('');}else setLines(current=>{const blank=current.findIndex(l=>!l.item_id);return blank>=0?current.map((l,i)=>i===blank?{...l,item_id:id,rental_rate:standardRate(id)}:l):[...current,{...emptyLine(),item_id:id,rental_rate:standardRate(id)}];});setCreating('');})}</section>}<form style={{display:creating?'none':undefined}} onSubmit={e=>{e.preventDefault();handleSave();}}>
+ return <>{creating&&renderCreate&&<section className="form-section"><h3>Create {creating}</h3><button type="button" className="secondary" onClick={()=>setCreating('')}>Back to challan</button>{renderCreate(creating,id=>{if(creating==='customer'){setCustomer(id);setSite('');}else setLines(current=>{const blank=createItemRow.current??current.findIndex(l=>!l.item_id);return blank>=0?current.map((l,i)=>i===blank?{...l,item_id:id,rental_rate:standardRate(id)}:l):[...current,{...emptyLine(),item_id:id,rental_rate:standardRate(id)}];});setCreating('');})}</section>}<form style={{display:creating?'none':undefined}} onSubmit={e=>{e.preventDefault();handleSave();}}>
   {showDraftNotice&&<div className="alert success" role="status" style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'0.75rem'}}><span>📝 Restored your unsaved {isReturn?'inward challan':'outward challan'} draft.</span><button type="button" className="text-button" onClick={discardDraft} style={{whiteSpace:'nowrap'}}>Discard draft</button></div>}
   <Field label="Challan number"><input maxLength={80} value={reference} onChange={e=>setReference(e.target.value)} placeholder="Leave blank to generate a challan number"/></Field><Field label="Vehicle number (optional)"><input maxLength={40} value={vehicle} onChange={e=>setVehicle(e.target.value)}/></Field>
   <div className="form-grid">
@@ -180,7 +196,7 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
    {sites.length>0&&<Field label={isReturn?'From site':'To site'}><select required value={site} onChange={e=>setSite(e.target.value)}><option value="">Select site</option>{sites.map(s=><option key={s} value={s}>{s}</option>)}{legacyStock&&<option value="__legacy__">Existing stock — site not recorded</option>}</select></Field>}
    <Field label={isReturn?'Inward challan date':'Outward challan date'}><input type="date" required max={data.today} value={date} onChange={e=>changeDate(e.target.value)}/></Field>
   </div>
-  {!isReturn&&renderCreate&&<div className="form-footer"><button type="button" className="secondary" onClick={()=>setCreating('customer')}>+ New customer</button><button type="button" className="secondary" onClick={()=>setCreating('item')}>+ New item</button></div>}
+  {!isReturn&&renderCreate&&<div className="form-footer"><button type="button" className="secondary" onClick={()=>setCreating('customer')}>+ New customer</button><button type="button" className="secondary" onClick={()=>{createItemRow.current=null;setCreating('item');}}>+ New item</button></div>}
   <div className="form-section">
    <h3>{isReturn?'Material coming back':'Material leaving the yard'}</h3>
    <p>{isReturn?'Returned quantity includes damaged pieces. Rental charges use each original dispatch\'s saved rate.':'The standard rate for the delivery date fills automatically. Change it for this customer\'s dispatch; other customers and existing dispatches keep their own rates.'}</p>
@@ -188,7 +204,7 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
     const standard=standardRate(line.item_id);
     return <div className="dispatch-line-card" key={index}>
      <div className="movement-line">
-      <Field label="Item"><select required value={line.item_id} onChange={e=>changeLine(index,{item_id:e.target.value,rental_rate:standardRate(e.target.value),custom_rate:false})}><option value="">Select material</option>{data.items.filter((item:RecordData)=>isReturn||item.active).map((item:RecordData)=><option value={item.id} key={item.id}>{item.name}</option>)}</select></Field>
+      <MaterialSearch items={data.items.filter((item:RecordData)=>isReturn||item.active)} value={line.item_id} onChange={id=>changeLine(index,{item_id:id,rental_rate:standardRate(id),custom_rate:false})} onCreate={renderCreate?()=>{createItemRow.current=index;setCreating('item');}:undefined}/>
       <Field label={isReturn?'Total returned':'Quantity'}><input type="number" required min="1" step="1" value={line.quantity} onChange={e=>changeLine(index,{quantity:Number(e.target.value)})}/></Field>
       {isReturn?<Field label="Of which damaged"><input type="number" required min="0" max={line.quantity} step="1" value={line.damaged_quantity} onChange={e=>changeLine(index,{damaged_quantity:Number(e.target.value)})}/></Field>:<Field label="Agreed rent / pc / day (₹)"><input type="number" required min="0" max="99999999" step="0.0001" placeholder="Enter a rental rate" value={line.rental_rate} onChange={e=>changeLine(index,{rental_rate:e.target.value,custom_rate:true})}/></Field>}
       {lines.length>1&&<button type="button" className="icon-button" aria-label="Remove item" onClick={()=>setLines(current=>current.filter((_,i)=>i!==index))}><X size={17}/></button>}

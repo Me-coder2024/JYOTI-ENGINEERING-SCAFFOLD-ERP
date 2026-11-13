@@ -64,3 +64,8 @@
 .erp-wrapper .challan-grid-count{padding:0 24px 18px;color:#7186a0}
 .erp-wrapper .challan-grid-empty{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:48px 24px;color:#7186a0}
 @media(max-width:600px){.erp-wrapper .challan-browser-heading{padding:18px}.erp-wrapper .challan-card-grid{padding:0 18px 18px;grid-template-columns:1fr}.erp-wrapper .challan-grid-search{padding:0 18px 18px}.erp-wrapper .challan-view-switch button{min-height:48px}.erp-wrapper .challan-calendar{width:100%}}
+.erp-wrapper .material-search{position:relative;min-width:0}
+.erp-wrapper .material-search-menu{position:absolute;z-index:30;top:100%;left:0;right:0;background:white;border:1px solid #cbdcf0;border-radius:8px;box-shadow:0 8px 24px #16345620;max-height:260px;overflow:auto}
+.erp-wrapper .material-search-menu [role="option"]{padding:12px 14px;cursor:pointer;color:#294d73}
+.erp-wrapper .material-search-menu [role="option"].active{background:#e6f0ff;color:#173f70}
+.erp-wrapper .material-search-empty{padding:14px}
