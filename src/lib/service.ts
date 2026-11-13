@@ -20,7 +20,7 @@ const movementSchema = z.object({ site_name:z.string().trim().max(200).default('
 async function audit(db: PoolClient, action: string, id: string, details: unknown) { await db.query('INSERT INTO audit_log(action,entity_id,details) VALUES($1,$2,$3)',[action,id,JSON.stringify(details)]); }
 export async function state() {
  const results = await Promise.all([
- pool.query('SELECT * FROM company WHERE id=1'), pool.query("SELECT c.*, l.party_details->>'mailing_name' AS mailing_name,l.party_details->>'country' AS country,l.party_details->>'place_of_supply' AS place_of_supply,l.party_details->>'gst_registration' AS gst_registration FROM customers c LEFT JOIN rental_acc_ledgers l ON l.customer_id=c.id ORDER BY c.name"), pool.query('SELECT * FROM items ORDER BY name'), pool.query('SELECT * FROM rates ORDER BY effective_from'), pool.query('SELECT * FROM movements ORDER BY date,created_at,id'), pool.query('SELECT id,invoice_no,customer_id,period_start,period_end,status,grand_total,damage_total,generated_at FROM invoices ORDER BY generated_at DESC'), pool.query('SELECT * FROM quotations ORDER BY created_at DESC')]);
+ pool.query('SELECT * FROM company WHERE id=1'), pool.query("SELECT c.*, l.party_details->>'mailing_name' AS mailing_name,l.party_details->>'country' AS country,l.party_details->>'place_of_supply' AS place_of_supply,l.party_details->>'gst_registration' AS gst_registration FROM customers c LEFT JOIN rental_acc_ledgers l ON l.customer_id=c.id ORDER BY c.name"), pool.query('SELECT * FROM items ORDER BY name'), pool.query('SELECT * FROM rates ORDER BY effective_from'), pool.query('SELECT * FROM movements ORDER BY date,created_at,id'), pool.query("SELECT snapshot->>'billing_scope' AS billing_scope,COALESCE(snapshot->>'site_name','') AS site_name,id,invoice_no,customer_id,period_start,period_end,status,grand_total,damage_total,generated_at FROM invoices ORDER BY generated_at DESC"), pool.query('SELECT * FROM quotations ORDER BY created_at DESC')]);
  const [company, customers, items, rates, movements, invoices, quotations] = results.map(r => r.rows);
  const balances = [],currentDay=today();
  const grouped=new Map<string,any[]>();
@@ -31,7 +31,8 @@ export async function state() {
  }
  const payments=(await pool.query(paymentRowsSql)).rows,byInvoice=new Map<string,any[]>();
  for(const p of payments){const group=byInvoice.get(p.invoice_id)||[];group.push(p);byInvoice.set(p.invoice_id,group);}
- return {company:company[0],customers,items,rates,movements,invoices:invoices.map(i=>({...i,...paymentSummary(i.grand_total,byInvoice.get(i.id)||[])})),quotations,balances,today:currentDay};
+ const companyFinancials=(await pool.query(`SELECT l.customer_id,COALESCE(SUM((entry->>'debit')::numeric-(entry->>'credit')::numeric),0)::text AS balance,COALESCE(SUM(CASE WHEN v.type='Receipt' AND NOT EXISTS(SELECT 1 FROM rental_acc_vouchers reversed WHERE reversed.reverses_id=v.id) THEN (entry->>'credit')::numeric-(entry->>'debit')::numeric ELSE 0 END),0)::text AS received FROM rental_acc_ledgers l LEFT JOIN rental_acc_vouchers v ON true LEFT JOIN LATERAL jsonb_array_elements(v.lines) entry ON entry->>'ledger_id'=l.id::text WHERE l.customer_id IS NOT NULL GROUP BY l.customer_id`)).rows;
+ return {company_financials:companyFinancials,company:company[0],customers,items,rates,movements,invoices:invoices.map(i=>({...i,...paymentSummary(i.grand_total,byInvoice.get(i.id)||[])})),quotations,balances,today:currentDay};
 }
 export async function saveCustomer(input: unknown) {
  const d = customerSchema.parse(input), id=d.id||randomUUID();
@@ -57,8 +58,8 @@ export async function saveItem(input: unknown) {
    await audit(db,'ITEM_SAVE',id,d);return {id};
  });
 }
-async function checkFinal(db: PoolClient, customerId: string, start: string) {
- const locked=await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_end >= $2 LIMIT 1`,[customerId,start]);
+async function checkFinal(db: PoolClient, customerId: string, start: string, site: string) {
+ const locked=await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_end >= $2 AND (snapshot->>'billing_scope'='company' OR COALESCE(snapshot->>'site_name','')=$3) LIMIT 1`,[customerId,start,site]);
  if(locked.rows.length) throw new Error(`This change affects invoice ${locked.rows[0].invoice_no}, already finalized — generate a credit/debit note instead. No change was saved.`);
 }
 export async function saveMovement(input: unknown, preview=false) {
@@ -73,7 +74,7 @@ export async function saveMovement(input: unknown, preview=false) {
    if(sites.length&&!sites.includes(d.site_name)&&!(d.type==='RETURN'&&d.legacy_site&&!d.site_name&&(await db.query("SELECT 1 FROM movements WHERE customer_id=$1 AND site_name='' LIMIT 1",[c.id])).rowCount))throw new Error('Select a valid customer site for this challan.');
    if(!sites.length&&d.site_name)throw new Error('This customer has no configured sites. Refresh the customer profile.');
    if(d.legacy_site&&(d.type!=='RETURN'||d.site_name))throw new Error('Existing unassigned stock is available only for inward challans.');
-   await checkFinal(db,c.id,d.date);
+   await checkFinal(db,c.id,d.date,d.site_name);
    const challanId=randomUUID();
    const reference=d.reference || (preview?'Assigned on save':`${d.type==='DISPATCH'?'DC':'RC'}-${(await db.query("SELECT nextval('rental_challan_number_seq') AS n")).rows[0].n}`);
    const previews=[];
@@ -128,7 +129,7 @@ async function calculateInvoice(db: PoolClient, input: unknown) {
    for(const m of ms) if(m.date>=d.period_start && m.date<=d.period_end && m.damaged_quantity>0) damages.push({movement_id:m.id,item_id:item.id,name:item.name,date:m.date,quantity:m.damaged_quantity,price:m.damage_price,amount:damageAmount(m.damaged_quantity,m.damage_price)});
  }
  if(!lines.length&&!damages.length) throw new Error('There are no billable items or damage charges in this period.');
- return {...d,company,customer,lines,damages,...totals(lines.map(l=>String(l.amount)),damages.map(l=>String(l.amount)),String(d.gst_percent))};
+ return {...d,billing_scope:'company',company,customer,lines,damages,...totals(lines.map(l=>String(l.amount)),damages.map(l=>String(l.amount)),String(d.gst_percent))};
 }
 export async function createInvoice(input:unknown,preview=false) {
  return transaction(async db=> {
@@ -154,7 +155,8 @@ export async function finalizeInvoice(id:string,user:User) {
    if(invoice.status==='FINAL') {await postInvoice(db,user,invoice);return {id};}
    const overlap=(await db.query(`SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_start<=$3 AND period_end>=$2`,[invoice.customer_id,invoice.period_start,invoice.period_end])).rows;
    if(overlap.length) throw new Error(`Period overlaps ${overlap[0].invoice_no}.`);
-   const fresh=await calculateInvoice(db,{...invoice,document_details:invoice.snapshot.document_details});
+   const fresh=await calculateInvoice(db,{...invoice,site_name:invoice.snapshot.site_name,document_details:invoice.snapshot.document_details});
+   if(!invoice.snapshot.billing_scope)delete (fresh as any).billing_scope;
    if(JSON.stringify(fresh)!==JSON.stringify(invoice.snapshot)) {
      // JSONB key order is not stable: compare canonicalized snapshots.
      const stable=(v:unknown):string=>JSON.stringify(v,(_k,val)=>val&&typeof val==='object'&&!Array.isArray(val)?Object.fromEntries(Object.entries(val).sort(([a],[b])=>a.localeCompare(b))):val);

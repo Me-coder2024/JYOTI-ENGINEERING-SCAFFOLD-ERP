@@ -198,7 +198,7 @@ export default function MovementForm({data,initial,busy,onSave,renderCreate}:{da
    })}
    <button type="button" className="text-button" onClick={()=>setLines(current=>[...current,emptyLine()])}><Plus size={16}/>Add another item</button>
   </div>
-  {error&&<div className="alert error" role="alert">{error}<p>Your entered details are still here. Retry the balance check when the connection is available.</p><button type="button" className="text-button" onClick={()=>setRetry(n=>n+1)}>Retry check</button></div>}
+  {error&&<div className="alert error" role="alert">{error}<p>Your entered details are still here. Review the message above, correct the entry if needed, then retry the check.</p><button type="button" className="text-button" onClick={()=>setRetry(n=>n+1)}>Retry check</button></div>}
   {loading&&<p className="muted">Checking balances and rates…</p>}
   {preview?.payloadKey===payloadKey&&preview?.previews.map((p:RecordData)=><div className="balance-preview" key={p.item_id}>
    <strong>{p.name}</strong>

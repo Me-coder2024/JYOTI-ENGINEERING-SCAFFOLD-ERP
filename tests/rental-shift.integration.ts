@@ -184,6 +184,42 @@ try{for(const f of (await readdir('db')).filter(f=>/^\d.*sql$/.test(f)).sort())a
  await assert.rejects(cancelVoucher(owner,{...cancellation,submission_id:randomUUID()}),/already been reversed/);
  console.log('PASS: owner-only cancellation and duplicate retry protection.');
 
+
+ // Company consolidation with independent site stock and billing periods.
+ const multi=await s.saveCustomer({name:'Safety Rise site regression',locking_days:0});
+ const move={customer_id:multi.id,date:'2026-08-01',type:'DISPATCH',lines:[{item_id:item.id,quantity:1000,rental_rate:1}]};
+ await s.saveMovement(move);
+ const bill={customer_id:multi.id,period_start:'2026-08-01',period_end:'2026-08-31',gst_percent:0};
+ const legacyInvoice:any=await s.createInvoice(bill);
+
+ // Simulate an unchanged historical legacy invoice without the new scope marker.
+ await pool.query("UPDATE invoices SET snapshot=snapshot-'billing_scope' WHERE id=$1",[legacyInvoice.id]);
+ await s.finalizeInvoice(legacyInvoice.id,owner);const frozen=(await pool.query('SELECT * FROM invoices WHERE id=$1',[legacyInvoice.id])).rows[0];
+ await s.saveCustomer({id:multi.id,name:'Safety Rise site regression',locking_days:0,sites:['Odisha','Gujarat']});
+ await assert.rejects(s.saveMovement({...move,site_name:'Odisha',type:'RETURN',lines:[{item_id:item.id,quantity:1}]}),/only 0/);
+ await s.saveMovement({...move,site_name:'Odisha',lines:[{item_id:item.id,quantity:10,rental_rate:2}]});
+ await s.saveMovement({...move,site_name:'Gujarat',lines:[{item_id:item.id,quantity:5,rental_rate:3}]});
+ await assert.rejects(s.createInvoice(bill),/overlap/i);
+ const nextBill={...bill,period_start:'2026-09-01',period_end:'2026-09-30'};
+ const combined:any=await s.createInvoice(nextBill);
+ const snap=(await pool.query('SELECT snapshot FROM invoices WHERE id=$1',[combined.id])).rows[0].snapshot;
+ assert.equal(snap.billing_scope,'company');assert.equal(Number(snap.grand_total),31050);
+ assert.equal(snap.lines.reduce((n:number,l:any)=>n+Number(l.quantity),0),1015);
+ await s.finalizeInvoice(combined.id,owner);
+ await assert.rejects(s.createInvoice({...nextBill,site_name:'Odisha'}),/overlap/i);
+ await assert.rejects(s.saveMovement({...move,date:'2026-09-01',site_name:'Odisha'}),/finalized/);
+ assert.deepEqual((await pool.query('SELECT * FROM invoices WHERE id=$1',[legacyInvoice.id])).rows[0],frozen);
+ const multiLedger=(await pool.query('SELECT id FROM rental_acc_ledgers WHERE customer_id=$1',[multi.id])).rows[0].id;
+ const multiReceipt={id:randomUUID(),type:'Receipt',date:today,narration:'One customer payment',lines:[{ledger_id:bank.id,debit:300,credit:0},{ledger_id:multiLedger,debit:0,credit:300}],details:{allocations:[{invoice_id:legacyInvoice.id,amount:200},{invoice_id:combined.id,amount:100}]}};
+ await a.postVoucher(owner,multiReceipt);await a.postVoucher(owner,multiReceipt);
+ const consolidated=await s.state(),companyInvoices=consolidated.invoices.filter((i:any)=>i.customer_id===multi.id);
+ assert.equal(companyInvoices.length,2);assert.equal(companyInvoices.reduce((n:number,i:any)=>n+Number(i.grand_total),0),62050);
+ assert.equal(companyInvoices.reduce((n:number,i:any)=>n+Number(i.paid),0),300);
+ assert.equal(Number(consolidated.company_financials.find((f:any)=>f.customer_id===multi.id)?.balance),61750);
+ await a.postVoucher(owner,{id:randomUUID(),type:'Receipt',date:today,narration:'Company advance',lines:[{ledger_id:bank.id,debit:50,credit:0},{ledger_id:multiLedger,debit:0,credit:50}],details:{}});
+ const withAdvance=await s.state();assert.equal(Number(withAdvance.company_financials.find((f:any)=>f.customer_id===multi.id)?.balance),61700);
+ assert.equal(withAdvance.invoices.filter((i:any)=>i.customer_id===multi.id).reduce((n:number,i:any)=>n+Number(i.paid),0),300);
+ console.log('PASS: combined invoice includes legacy and both sites, carry-forward rent, historical invoices unchanged, duplicate billing blocked and company payments counted once.');
  if(process.argv.includes('--http')){
  const auth=await import('../src/shared/auth-server');await pool.query('UPDATE erp_users SET password_hash=$1 WHERE id=$2',[await auth.passwordHash('OnlyForLocalTest123'),owner.id]);
  server=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','3012'],{env:{...process.env,GST_LOOKUP_DISABLED:'1',SESSION_SECRET:'isolated-local-test-secret-at-least-32-characters'},stdio:'ignore',windowsHide:true});

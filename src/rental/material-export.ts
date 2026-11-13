@@ -5,12 +5,13 @@ import {loadFormats} from './ledger-format-service';
 import {renderLedger,type ReportRow} from './ledger-render';
 export const reportDate=z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v=>Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v);
 export async function materialExport(params:URLSearchParams){
- const d=z.object({customer:z.string().uuid(),start:reportDate,end:reportDate,item:z.union([z.string().uuid(),z.literal('')]).default(''),format:z.enum(['pdf','xlsx']).default('pdf')}).parse(Object.fromEntries(params));
+ const d=z.object({site:z.string().max(200).optional(),customer:z.string().uuid(),start:reportDate,end:reportDate,item:z.union([z.string().uuid(),z.literal('')]).default(''),format:z.enum(['pdf','xlsx']).default('pdf')}).parse(Object.fromEntries(params));
  if(d.start>d.end)throw new Error('Choose a valid date range.');
  const report=await transaction(async db=>{
   const c=(await db.query('SELECT * FROM customers WHERE id=$1',[d.customer])).rows[0];if(!c)throw new Error('Customer not found.');
   const items=(await db.query('SELECT id,name FROM items ORDER BY name')).rows;
-  const moves=(await db.query('SELECT id,item_id,date,type,quantity,reference,created_at FROM movements WHERE customer_id=$1 AND date<=$2 ORDER BY date,created_at,id',[d.customer,d.end])).rows;
+  const allMoves=(await db.query('SELECT id,item_id,date,type,quantity,reference,created_at,site_name FROM movements WHERE customer_id=$1 AND date<=$2 ORDER BY date,created_at,id',[d.customer,d.end])).rows;
+  const moves=d.site===undefined?allMoves:allMoves.filter(m=>(m.site_name||'')===d.site);
   const groups=materialGroups(items,moves,d.start,d.end,d.item),rows:ReportRow[]=[];
   for(const g of groups){
    rows.push({values:{Date:'Opening Balance','Item Name':g.name,'Pend.Qty':g.opening},strong:true});
@@ -20,7 +21,7 @@ export async function materialExport(params:URLSearchParams){
   }
   const total=groups.reduce((t,g)=>({issued:t.issued+g.issued,received:t.received+g.received,pending:t.pending+g.pending}),{issued:0,received:0,pending:0});
   rows.push({values:{'Item Name':'Closing Balance','Issu Qty':total.issued,'Rcpt Qty':total.received,'Pend.Qty':total.pending},strong:true});
-  return {party:c.name,address:[c.address,c.mobile].filter(Boolean).join(' | '),start:d.start,end:d.end,rows};
+  return {party:c.name+(d.site===undefined?' — All sites':' — '+(d.site||'Legacy / Unassigned')),address:[c.address,c.mobile].filter(Boolean).join(' | '),start:d.start,end:d.end,rows};
  },true);
  return renderLedger(report,(await loadFormats()).material,d.format);
 }

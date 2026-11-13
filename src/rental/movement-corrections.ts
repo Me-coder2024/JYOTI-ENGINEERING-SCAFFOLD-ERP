@@ -32,7 +32,7 @@ export async function correctMovement(user:User,input:unknown){
    }
   }
   const earliest=next&&next.date<old.date?next.date:old.date;
-  const locked=(await db.query("SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_end >= $2 LIMIT 1",[old.customer_id,earliest])).rows[0];
+  const locked=(await db.query("SELECT invoice_no FROM invoices WHERE customer_id=$1 AND status='FINAL' AND period_end >= $2 AND (snapshot->>'billing_scope'='company' OR COALESCE(snapshot->>'site_name','')=$3) LIMIT 1",[old.customer_id,earliest,old.site_name||''])).rows[0];
   if(locked)throw new AccessError('This correction affects finalized invoice '+locked.invoice_no+'. Use an accounting adjustment; the original movement is locked.');
   const rows=(await db.query('SELECT * FROM movements WHERE customer_id=$1 AND item_id=$2 ORDER BY date,created_at,id',[old.customer_id,old.item_id])).rows;
   const revised=rows.filter(r=>r.id!==old.id);

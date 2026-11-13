@@ -35,7 +35,7 @@ export async function referenceInvoicePdf(record:Row){
   const buyerTop=titleTop-24;
   const buyer='M/s. '+b.name+'\n'+(b.address||'')+'\nGST No.: '+(b.gst_no||'-')+'    State Code: '+(b.state_code||'-');
   const bh=Math.max(61,wrap(buyer,377).length*11+10);box(left,buyerTop,385,bh);text(buyer,left+5,buyerTop-5,375);box(409,buyerTop,162,bh);text('Invoice No.: '+record.invoice_no+'\n\nInvoice Date: '+date(record.generated_at instanceof Date?record.generated_at.toISOString():record.generated_at),414,buyerTop-5,152);
-  y=buyerTop-bh;const site='Site Name: '+(d.ship_to||d.destination||b.address||'-');const sh=Math.max(30,wrap(site,width-10).length*11+8);box(left,y,width,sh);text(site,left+5,y-4,width-10);y-=sh;
+  y=buyerTop-bh;const site='Site Name: '+(s.site_name?[s.site_name,d.ship_to||d.destination].filter(Boolean).join(' — '):(d.ship_to||d.destination||b.address||'-'));const sh=Math.max(30,wrap(site,width-10).length*11+8);box(left,y,width,sh);text(site,left+5,y-4,width-10);y-=sh;
   row(['Item Name','HSN/\nSAC\nCode','From Date','To Date','Day','Hire\nPer Day\nPer Pcs','GST\n%','Amount'],widths);
  }
  next();
@@ -103,7 +103,7 @@ export async function invoiceExcel(record:Row){
  sheet.columns=[32,15,15,15,10,12,16,12,18].map(width=>({width}));
  const line=(value:string)=>{const r=sheet.addRow([value]);sheet.mergeCells(r.number,1,r.number,9);r.alignment={wrapText:true,vertical:'middle'};r.height=Math.max(23,Math.ceil(value.length/110)*16);return r;};
  line(c.name).font={bold:true,size:18};line([c.unit1,c.unit2,c.mobile,c.email].filter(Boolean).join(' | '));line('TAX INVOICE '+record.invoice_no+' | '+record.status+' | '+date(record.generated_at instanceof Date?record.generated_at.toISOString():record.generated_at));
- line('Customer: '+b.name);line('Address: '+(b.address||''));line('Customer GST: '+(b.gst_no||'-')+' | State: '+(b.state_code||'-'));line('Company GST: '+(c.gst_no||'-'));line('Billing period: '+s.period_start+' to '+s.period_end);
+ line('Customer: '+b.name);if(s.site_name)line('Site: '+s.site_name);line('Address: '+(b.address||''));line('Customer GST: '+(b.gst_no||'-')+' | State: '+(b.state_code||'-'));line('Company GST: '+(c.gst_no||'-'));line('Billing period: '+s.period_start+' to '+s.period_end);
  const header=sheet.addRow(['Item Name','HSN/SAC','From Date','To Date','Days','Quantity','Hire/day/pc','GST %','Amount']);header.font={bold:true};header.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD9D9D9'}};
  invoiceRows(s).forEach(r=>sheet.addRow(r.map((v,i)=>i>=4?Number(v):String(v))));
  sheet.getColumn(7).numFmt='0.0000';sheet.getColumn(9).numFmt='0.00';

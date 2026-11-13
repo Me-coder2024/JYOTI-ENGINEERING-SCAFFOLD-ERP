@@ -29,7 +29,7 @@ export async function invoicePdf(record:Row){
  const s=record.snapshot,c=s.company,b=s.customer,d=s.document_details||{},p=await layout(c,(record.status==='DRAFT'?'DRAFT - ':'')+'Tax Invoice',true);
  const issue=record.generated_at instanceof Date?record.generated_at.toISOString().slice(0,10):String(record.generated_at||'').slice(0,10);
  const seller=[c.name,c.unit1,'GSTIN/UIN: '+(c.gst_no||'Not supplied'),'State code: '+(/^\d{2}/.test(c.gst_no||'')?c.gst_no.slice(0,2):'-')].filter(Boolean).join('\n');
- const consignee='Consignee (Ship to)\n'+(d.ship_to||b.name+'\n'+b.address)+'\nGSTIN/UIN: '+(b.gst_no||'-');
+ const consignee='Consignee (Ship to)\n'+(s.site_name?'Site: '+s.site_name+'\n':'')+(d.ship_to||b.name+'\n'+b.address)+'\nGSTIN/UIN: '+(b.gst_no||'-');
  const buyer=['Buyer (Bill to)',b.name,b.address,'GSTIN/UIN: '+(b.gst_no||'-'),'State code: '+b.state_code,'Place of Supply: '+(d.place_of_supply||b.state_code)].join('\n');
  const left=[seller,consignee,buyer],heights=left.map(v=>Math.max(48,p.wrap(v,274,8).length*11+9)),totalHeight=heights.reduce((a,b)=>a+b,0);
  if(totalHeight>380){left.forEach(v=>p.paragraph(v));}else{
