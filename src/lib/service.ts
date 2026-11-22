@@ -1,6 +1,7 @@
+import {invoiceTax} from '@/rental/invoice-tax';
 import Decimal from 'decimal.js';
 import {postInvoice} from '@/rental/invoice-posting';
-import type {User} from '@/shared/access';
+import {demand,type User} from '@/shared/access';
 import {paymentRowsSql,paymentSummary} from '@/rental/payments';
 import {validGstin} from '@/rental/gst';
 import { randomUUID } from 'node:crypto';
@@ -16,7 +17,7 @@ const uuid = z.string().uuid();
 const siteList=z.array(z.string().trim().min(1).max(200)).max(100).refine(v=>new Set(v.map(s=>s.toLowerCase())).size===v.length,'Each site name must be unique.');
 const customerSchema = z.object({ sites:siteList.optional(), id: uuid.optional(), name: text.min(1), address: text.default(''), gst_no: text.transform(v=>v.trim().toUpperCase()).refine(v=>!v||validGstin(v),'Enter a valid GSTIN including its check digit.').default(''), state_code: text.default('24'), contact_person: text.default(''), mobile: text.default(''), email: z.union([z.email(),z.literal('')]).default(''), locking_days: z.coerce.number().int().min(0).max(3650), deposit: amount.default(0), mailing_name: text.max(2000).optional(), country: text.max(2000).optional(), place_of_supply: text.max(2000).optional(), gst_registration: z.enum(['Unknown','Regular','Composition','Unregistered/Consumer']).optional() });
 const itemSchema = z.object({ id: uuid.optional(), name: text.min(1), hsn: text.default('995457'), category: text.default('Scaffolding'), material_value: amount, weight: amount.default(0), active: z.boolean().default(true), rate: amount.optional(), effective_from: date.optional() });
-const movementSchema = z.object({ site_name:z.string().trim().max(200).default(''),legacy_site:z.boolean().default(false), customer_id: uuid, date, type: z.enum(['DISPATCH','RETURN']), note: text.default(''), reference: text.max(80).default(''), vehicle_no: text.max(40).default(''), lines: z.array(z.object({ item_id: uuid, quantity: z.coerce.number().int().positive().max(10000000), rental_rate: z.number().min(0).max(99999999).refine(v=>Math.abs(v*10000-Math.round(v*10000))<0.00001,'Use up to four decimal places.').optional(), damaged_quantity: z.coerce.number().int().min(0).default(0) })).min(1).max(100) });
+const movementSchema = z.object({ contact_phone:text.max(40).default(''),delivery_site:text.max(2000).default(''), site_name:z.string().trim().max(200).default(''),legacy_site:z.boolean().default(false), customer_id: uuid, date, type: z.enum(['DISPATCH','RETURN']), note: text.default(''), reference: text.max(80).default(''), vehicle_no: text.max(40).default(''), lines: z.array(z.object({ stock_type:z.enum(['Rent','New Rent']).default('Rent'),item_id: uuid, quantity: z.coerce.number().int().positive().max(10000000), rental_rate: z.number().min(0).max(99999999).refine(v=>Math.abs(v*10000-Math.round(v*10000))<0.00001,'Use up to four decimal places.').optional(), damaged_quantity: z.coerce.number().int().min(0).default(0) })).min(1).max(100) });
 async function audit(db: PoolClient, action: string, id: string, details: unknown) { await db.query('INSERT INTO audit_log(action,entity_id,details) VALUES($1,$2,$3)',[action,id,JSON.stringify(details)]); }
 export async function state() {
  const results = await Promise.all([
@@ -100,7 +101,7 @@ export async function saveMovement(input: unknown, preview=false) {
      const deferred=built.allocations.filter(a=>a.return_id===id && a.billing_date>d.date);
      previews.push({item_id:item.id,name:item.name,before:balanceAt(timelines(ms.filter(r=>(r.site_name||'')===d.site_name)).physical,d.date),after:balanceAt(timelines([...ms,m].filter(r=>(r.site_name||'')===d.site_name)).physical,d.date),lock_until:m.lock_until,rental_rate:rentalRate,deferred,damage_total:damageAmount(line.damaged_quantity,item.material_value)});
      if(preview) continue;
-     await db.query(`INSERT INTO movements(id,customer_id,item_id,date,type,quantity,lock_until,damaged_quantity,damage_price,note,rental_rate,reference,challan_id,vehicle_no,site_name) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,[id,c.id,item.id,m.date,m.type,m.quantity,m.lock_until,line.damaged_quantity,item.material_value,d.note,rentalRate,reference,challanId,d.vehicle_no,d.site_name]);
+     await db.query(`INSERT INTO movements(id,customer_id,item_id,date,type,quantity,lock_until,damaged_quantity,damage_price,note,rental_rate,reference,challan_id,vehicle_no,site_name,contact_phone,delivery_site,stock_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,[id,c.id,item.id,m.date,m.type,m.quantity,m.lock_until,line.damaged_quantity,item.material_value,d.note,rentalRate,reference,challanId,d.vehicle_no,d.site_name,d.contact_phone,d.delivery_site,line.stock_type]);
      if(m.type==='DISPATCH') await db.query('INSERT INTO dispatch_lots(id,customer_id,item_id,original_quantity,dispatch_date,lock_until) VALUES($1,$2,$3,$4,$5,$6)',[id,c.id,item.id,m.quantity,m.date,m.lock_until]);
      await db.query('DELETE FROM return_allocations WHERE return_id IN (SELECT id FROM movements WHERE customer_id=$1 AND item_id=$2)',[c.id,item.id]);
      if(built.allocations.length) await db.query('INSERT INTO return_allocations(return_id,lot_id,quantity,return_date,billing_date) SELECT return_id,lot_id,quantity,return_date,billing_date FROM jsonb_to_recordset($1::jsonb) AS a(return_id uuid,lot_id uuid,quantity integer,return_date date,billing_date date)',[JSON.stringify(built.allocations)]);
@@ -109,12 +110,12 @@ export async function saveMovement(input: unknown, preview=false) {
    return {previews,reference,challan_id:challanId};
  }, preview);
 }
-const invoiceSchema=z.object({site_name:z.string().trim().max(200).optional(),customer_id:uuid,period_start:date,period_end:date,gst_percent:z.coerce.number().min(0).max(100),notes:text.default(''),document_details:z.object({ship_to:text.max(2000).default(''),delivery_note:text.max(200).default(''),delivery_date:z.union([date,z.literal('')]).default(''),payment_terms:text.max(200).default(''),reference:text.max(200).default(''),dispatch_document:text.max(200).default(''),dispatched_through:text.max(200).default(''),destination:text.max(200).default(''),lr_number:text.max(200).default(''),vehicle_no:text.max(200).default(''),delivery_terms:text.max(1000).default(''),place_of_supply:text.max(200).default(''),tax_mode:z.enum(['GST','CGST_SGST','IGST']).default('GST')}).optional()});
+const invoiceSchema=z.object({site_name:z.string().trim().max(200).optional(),customer_id:uuid,period_start:date,period_end:date,gst_percent:z.coerce.number().min(0).max(100),notes:text.default(''),document_details:z.object({ship_to:text.max(2000).default(''),delivery_note:text.max(200).default(''),delivery_date:z.union([date,z.literal('')]).default(''),payment_terms:text.max(200).default(''),reference:text.max(200).default(''),dispatch_document:text.max(200).default(''),dispatched_through:text.max(200).default(''),destination:text.max(200).default(''),lr_number:text.max(200).default(''),vehicle_no:text.max(200).default(''),delivery_terms:text.max(1000).default(''),place_of_supply:text.max(200).default(''),tax_mode:z.enum(['GST','CGST_SGST','IGST']).default('GST')}).prefault({})});
 async function calculateInvoice(db: PoolClient, input: unknown) {
  const d=invoiceSchema.parse(input);
  if(d.period_start>d.period_end) throw new Error('Period start must be before period end.');
  if(d.period_end>today()) throw new Error('Invoice period cannot end in the future. Choose today or an earlier date.');
- const customer=(await db.query('SELECT * FROM customers WHERE id=$1',[d.customer_id])).rows[0];
+ const customer=(await db.query("SELECT c.*,l.party_details->>'place_of_supply' AS place_of_supply FROM customers c LEFT JOIN rental_acc_ledgers l ON l.customer_id=c.id WHERE c.id=$1",[d.customer_id])).rows[0];
  if(!customer) throw new Error('Customer not found.');
  // Site administration is challan metadata, not a change to invoice billing data.
  // Keep pre-existing draft snapshots comparable after the additive migration.
@@ -130,7 +131,8 @@ async function calculateInvoice(db: PoolClient, input: unknown) {
    for(const m of ms) if(m.date>=d.period_start && m.date<=d.period_end && m.damaged_quantity>0) damages.push({movement_id:m.id,item_id:item.id,name:item.name,date:m.date,quantity:m.damaged_quantity,price:m.damage_price,amount:damageAmount(m.damaged_quantity,m.damage_price)});
  }
  if(!lines.length&&!damages.length) throw new Error('There are no billable items or damage charges in this period.');
- return {...d,billing_scope:d.site_name===undefined?'company':'site',company,customer,lines,damages,...totals(lines.map(l=>String(l.amount)),damages.map(l=>String(l.amount)),String(d.gst_percent))};
+ const result={...d,billing_scope:d.site_name===undefined?'company':'site',company,customer,lines,damages,...totals(lines.map(l=>String(l.amount)),damages.map(l=>String(l.amount)),String(d.gst_percent))};
+ const tax=invoiceTax(result);return {...result,tax,document_details:{...d.document_details,tax_mode:tax.tax_mode}};
 }
 export async function createInvoice(input:unknown,preview=false) {
  return transaction(async db=> {
@@ -187,14 +189,28 @@ export async function saveCompany(input:unknown) {
  return transaction(async db=>{ await db.query(`UPDATE company SET name=$1,unit1=$2,unit2=$3,mobile=$4,email=$5,website=$6,gst_no=$7,bank_name=$8,bank_account=$9,bank_ifsc=$10,logo=$11,gst_percent=$12,terms=$13 WHERE id=1`,Object.values(d));await audit(db,'COMPANY_SAVE','1',d);return {ok:true}; });
 }
 export async function saveQuotation(input:unknown) {
- const d=z.object({customer_id:uuid,date,deposit:amount,terms:text,pdc_terms:text.default(''),reference:z.string().trim().max(80).default(''),gst_percent:z.coerce.number().min(0).max(100).optional(),dispatch_days:z.coerce.number().int().min(0).max(365).default(7),required_documents:text.default(''),lines:z.array(z.object({item_id:uuid,quantity:z.coerce.number().int().positive(),rate:amount})).min(1)}).parse(input);
+ const d=z.object({id:uuid.optional(),customer_id:uuid,date,deposit:amount,terms:text,pdc_terms:text.default(''),reference:z.string().trim().max(80).default(''),gst_percent:z.coerce.number().min(0).max(100).optional(),dispatch_days:z.coerce.number().int().min(0).max(365).default(7),required_documents:text.default(''),lines:z.array(z.object({item_id:uuid,quantity:z.coerce.number().int().positive(),rate:amount})).min(1)}).parse(input);
  return transaction(async db=> {
    const customer=(await db.query('SELECT * FROM customers WHERE id=$1',[d.customer_id])).rows[0];
    if(!customer) throw new Error('Customer not found.');
    const company=(await db.query('SELECT * FROM company WHERE id=1')).rows[0];
    const lines=[];
    for(const l of d.lines) {const i=(await db.query('SELECT * FROM items WHERE id=$1',[l.item_id])).rows[0];if(!i) throw new Error('Item not found.');lines.push({...l,name:i.name,weight:i.weight,weight_total:money(new Decimal(i.weight||0).mul(l.quantity)),daily_total:damageAmount(l.quantity,String(l.rate)),material_value:i.material_value,material_total:damageAmount(l.quantity,i.material_value),monthly_total:damageAmount(l.quantity*30,String(l.rate))});}
-   const id=randomUUID(),snapshot={...d,gst_percent:d.gst_percent??Number(company.gst_percent||0),customer,company,lines,material_total:money(lines.reduce((s,l)=>s+Number(l.material_total),0)),monthly_total:money(lines.reduce((s,l)=>s+Number(l.monthly_total),0))};
-   await db.query('INSERT INTO quotations(id,customer_id,date,snapshot) VALUES($1,$2,$3,$4)',[id,d.customer_id,d.date,JSON.stringify(snapshot)]);return {id};
+   const id=d.id||randomUUID(),snapshot={...d,gst_percent:d.gst_percent??Number(company.gst_percent||0),customer,company,lines,material_total:money(lines.reduce((s,l)=>s+Number(l.material_total),0)),monthly_total:money(lines.reduce((s,l)=>s+Number(l.monthly_total),0))};
+   if(d.id&&!(await db.query('SELECT id FROM quotations WHERE id=$1 FOR UPDATE',[d.id])).rowCount)throw new Error('Quotation not found.');
+   await db.query('INSERT INTO quotations(id,customer_id,date,snapshot) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO UPDATE SET customer_id=$2,date=$3,snapshot=$4',[id,d.customer_id,d.date,JSON.stringify(snapshot)]);return {id};
+ });
+}
+
+export async function saveSite(user:User,input:unknown){
+ const d=z.object({customer_id:uuid,action:z.enum(['create','edit','delete']),name:text.min(1).max(200),new_name:text.min(1).max(200).optional()}).parse(input);demand(user,'sites',d.action);
+ return transaction(async db=>{
+ await db.query('SELECT pg_advisory_xact_lock(914715)');
+ const c=(await db.query('SELECT * FROM customers WHERE id=$1 FOR UPDATE',[d.customer_id])).rows[0];if(!c)throw new Error('Customer not found.');
+ const old:string[]=c.sites||[];if(d.action!=='create'&&!old.includes(d.name))throw new Error('Site no longer exists. Refresh the page.');
+ if(d.action!=='create'&&(await db.query('SELECT 1 FROM movements WHERE customer_id=$1 AND site_name=$2 LIMIT 1',[c.id,d.name])).rowCount)throw new Error('Sites used by challans cannot be renamed or deleted.');
+ if(d.action==='edit'&&!d.new_name)throw new Error('Enter the new site name.');
+ const sites=siteList.parse(d.action==='create'?[...old,d.name]:d.action==='delete'?old.filter(n=>n!==d.name):old.map(n=>n===d.name?d.new_name!:n));
+ await db.query('UPDATE customers SET sites=$2 WHERE id=$1',[c.id,JSON.stringify(sites)]);await audit(db,'SITE_'+d.action.toUpperCase(),c.id,{before:old,after:sites,user_id:user.id});return {ok:true};
  });
 }

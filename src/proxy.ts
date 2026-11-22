@@ -1,6 +1,7 @@
+import {authorizeRequest} from './shared/request-access';
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionUser } from './shared/auth-server';
-import { allowed, homeFor } from './shared/access';
+import { allowed, homeFor, canManageUsers, can } from './shared/access';
 export async function proxy(req:NextRequest) {
  const path=req.nextUrl.pathname;
  if(path.startsWith('/api/manufacturing'))return NextResponse.json({error:'Manufacturing has been retired.'},{status:410});
@@ -14,7 +15,9 @@ export async function proxy(req:NextRequest) {
  if(path==='/')return NextResponse.redirect(new URL(homeFor(user.role),req.url));
  if(path==='/modules'&&user.role!=='OWNER')return NextResponse.redirect(new URL(homeFor(user.role),req.url));
  const module=path.startsWith('/users')||path.startsWith('/api/shared/users')?'owner':path.startsWith('/manufacturing')||path.startsWith('/api/manufacturing')?'manufacturing':path.startsWith('/rental')||(path.startsWith('/api/')&&!path.startsWith('/api/shared/'))?'rental':null;
- if(module&&!allowed(user.role,module))return NextResponse.json({error:'You do not have access to this module.'},{status:403});
+ if(module&&!(module==='owner'?canManageUsers(user):allowed(user.role,module)))return NextResponse.json({error:'You do not have access to this module.'},{status:403});
+ if(path.startsWith('/api/')){try{const body=['POST','PUT','PATCH','DELETE'].includes(req.method)?await req.clone().json().catch(()=>({})):{};authorizeRequest(user,path,req.method,body);}catch(e){return NextResponse.json({error:(e as Error).message},{status:403});}}
+ if(path.startsWith('/rental/accounting')&&!can(user,'accounts'))return NextResponse.json({error:'Accounts access required.'},{status:403});
  return NextResponse.next();
 }
 export const config={matcher:['/','/login','/modules','/users/:path*','/rental/:path*','/manufacturing/:path*','/api/:path*']};

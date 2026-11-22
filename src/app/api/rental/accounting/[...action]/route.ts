@@ -1,3 +1,5 @@
+import {correctChallan} from '@/rental/challan-corrections';
+import {authorizeRequest} from '@/shared/request-access';
 import {movementExport} from '@/rental/movement-export';
 import {pool} from '@/lib/db';
 import {voucherPdf} from '@/rental/print-documents';
@@ -16,7 +18,8 @@ export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export async function GET(req:NextRequest,{params}:{params:Promise<{action:string[]}>}){
  try{
-  await requireApi(req,'rental');
+  const user=await requireApi(req,'rental');
+  authorizeRequest(user,req.nextUrl.pathname,'GET');
   const path=(await params).action;
   if(path[0]==='challan'&&path[1]){const out=await challanExport(path[1]);return new Response(new Uint8Array(out.bytes),{headers:{'Content-Type':out.type,'Content-Disposition':'inline; filename="challan.pdf"','Cache-Control':'private, no-store'}});}
   if(path[0]==='movement-export'){
@@ -47,13 +50,14 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{action:stri
   sameOrigin(req);
   const user=await requireApi(req,'rental');
   const path=(await params).action;
-  if(['movements','formats'].includes(path[0]))await requireApi(req,'owner');
-  const data=await req.json();let result;
+
+  const data=await req.json();authorizeRequest(user,req.nextUrl.pathname,'POST',data);let result;
   switch(path[0]){
    case 'delete-record':result=await deleteRecord(user,data);break;
    case 'reconcile-invoices':result=await reconcileInvoices(user);break;
    case 'cancel-voucher':result=await cancelVoucher(user,data);break;
-   case 'movements':result=await correctMovement(user,data);break;
+   case 'challans':result=await correctChallan(user,data);break;
+   case 'movements':return Response.json({error:'Use Edit Challan.'},{status:403});
    case 'formats':result=await saveFormat(user,data);break;
    case 'ledgers':result=await accounting.saveLedger(user,data);break;
    case 'vouchers':result=await accounting.postVoucher(user,data);break;

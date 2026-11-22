@@ -1,3 +1,4 @@
+import {invoiceTax} from './invoice-tax';
 import {readFile} from 'node:fs/promises';
 import {PDFDocument,StandardFonts,rgb,type PDFPage,type PDFImage} from 'pdf-lib';
 import ExcelJS from 'exceljs';
@@ -10,7 +11,7 @@ const clean=(s:unknown)=>String(s??'').replaceAll('₹','INR ').replaceAll('×',
 const date=(s:unknown)=>{const [y,m,d]=String(s||'').slice(0,10).split('-');return d?`${d}/${m}/${y.slice(-2)}`:'';};
 export function invoiceRows(s:Row):any[][]{return [...s.lines.map((r:Row)=>[[r.name,r.formula].filter(Boolean).join('\n'),r.hsn||'',r.start,r.end,r.days,r.quantity,r.rate,s.gst_percent,r.amount]),...(s.damages||[]).map((r:Row)=>[r.name+' (damage)',r.hsn||'',r.date,r.date,1,r.quantity,r.price,s.gst_percent,r.amount])];}
 export async function referenceInvoicePdf(record:Row){
- const s=record.snapshot,c=s.company,b=s.customer,d=s.document_details||{},payments=record.payments||[],summary=paymentSummary(s.grand_total,payments);
+ const s=record.snapshot,c=s.company,b=s.customer,d={...s.document_details,tax_mode:invoiceTax(s).tax_mode},payments=record.payments||[],summary=paymentSummary(s.grand_total,payments);
  const doc=await PDFDocument.create(),font=await doc.embedFont(StandardFonts.Helvetica),bold=await doc.embedFont(StandardFonts.HelveticaBold);
  let logo:PDFImage|undefined;try{logo=c.logo?.startsWith('data:image/jpeg;')?await doc.embedJpg(Buffer.from(c.logo.split(',')[1],'base64')):await doc.embedPng(c.logo?.startsWith('data:image/png;')?Buffer.from(c.logo.split(',')[1],'base64'):await readFile('public/branding/jyoti-logo.png'));}catch{}
  let page:PDFPage,y=0;const left=24,right=571,width=547;
@@ -108,7 +109,7 @@ export async function invoiceExcel(record:Row){
  invoiceRows(s).forEach(r=>sheet.addRow(r.map((v,i)=>i>=4?Number(v):String(v))));
  sheet.getColumn(7).numFmt='0.0000';sheet.getColumn(9).numFmt='0.00';
  for(const [label,key] of [['Rental subtotal','rental_total'],['Damage charges','damage_total'],['Taxable subtotal','subtotal']])sheet.addRow([label,'','','','','','','',Number(s[key])]);
- if(s.document_details?.tax_mode==='CGST_SGST'){const half=new Decimal(s.gst_amount).div(2).toDecimalPlaces(2);sheet.addRow(['CGST '+new Decimal(s.gst_percent).div(2)+'%','','','','','','','',half.toNumber()]);sheet.addRow(['SGST '+new Decimal(s.gst_percent).div(2)+'%','','','','','','','',new Decimal(s.gst_amount).sub(half).toNumber()]);}else sheet.addRow([(s.document_details?.tax_mode==='IGST'?'IGST':'GST')+' '+s.gst_percent+'%','','','','','','','',Number(s.gst_amount)]);
+ if(invoiceTax(s).tax_mode==='CGST_SGST'){const half=new Decimal(s.gst_amount).div(2).toDecimalPlaces(2);sheet.addRow(['CGST '+new Decimal(s.gst_percent).div(2)+'%','','','','','','','',half.toNumber()]);sheet.addRow(['SGST '+new Decimal(s.gst_percent).div(2)+'%','','','','','','','',new Decimal(s.gst_amount).sub(half).toNumber()]);}else sheet.addRow([(invoiceTax(s).tax_mode==='IGST'?'IGST':'GST')+' '+s.gst_percent+'%','','','','','','','',Number(s.gst_amount)]);
  sheet.addRow(['Grand total','','','','','','','',Number(s.grand_total)]);
  const summary=paymentSummary(s.grand_total,record.payments||[]);sheet.addRow(['Payment received','','','','','','','',Number(summary.paid)]);sheet.addRow(['Outstanding','','','','','','','',Number(summary.outstanding)]);line('Payment status: '+summary.payment_status);line(amountWords(s.grand_total));line('Notes: '+(s.notes||''));
  for(const [k,v] of Object.entries(s.document_details||{}))if(v)line(k.replaceAll('_',' ')+': '+v);

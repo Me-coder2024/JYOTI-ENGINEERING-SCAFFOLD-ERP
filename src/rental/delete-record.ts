@@ -1,10 +1,11 @@
 import {z} from 'zod';
 import {transaction} from '@/lib/db';
-import {AccessError,type User} from '@/shared/access';
+import {AccessError,demand,type Module,type User} from '@/shared/access';
 
 export async function deleteRecord(user:User,input:unknown){
- if(user.role!=='OWNER')throw new AccessError('Only the owner can delete records.',403);
+
  const d=z.object({kind:z.enum(['invoice','quotation','customer','item','ledger']),id:z.string().uuid(),reason:z.string().trim().min(3).max(2000)}).parse(input);
+ demand(user,({invoice:'invoices',quotation:'quotations',customer:'customers',item:'inventory',ledger:'accounts'} as Record<string,Module>)[d.kind],'delete');
  const table={invoice:'invoices',quotation:'quotations',customer:'customers',item:'items',ledger:'rental_acc_ledgers'}[d.kind];
  return transaction(async db=>{
   await db.query('SELECT pg_advisory_xact_lock(914715)');

@@ -4,7 +4,7 @@ import ExcelJS from 'exceljs';
 import {PDFDocument} from 'pdf-lib';
 import {invoiceExcel,referenceInvoicePdf} from '../src/rental/invoice-reference';
 const row={name:'Scaffolding pipe',hsn:'995457',start:'2026-09-01',end:'2026-09-30',days:30,quantity:100,rate:'1.2345',amount:'3703.50'};
-const invoice={invoice_no:'TEST-1',status:'DRAFT',generated_at:'2026-10-01',snapshot:{company:{name:'JYOTI ENGINEERING'},customer:{name:'Example customer',address:'Sample address'},period_start:row.start,period_end:row.end,lines:[row],damages:[],rental_total:'3703.50',damage_total:'0',subtotal:'3703.50',gst_percent:18,gst_amount:'666.63',grand_total:'4370.13',document_details:{tax_mode:'CGST_SGST'}},payments:[{date:'2026-10-02',voucher_no:'RV-1',total:'1000'}]};
+const invoice={invoice_no:'TEST-1',status:'DRAFT',generated_at:'2026-10-01',snapshot:{company:{name:'JYOTI ENGINEERING'},customer:{state_code:'24',name:'Example customer',address:'Sample address'},period_start:row.start,period_end:row.end,lines:[row],damages:[],rental_total:'3703.50',damage_total:'0',subtotal:'3703.50',gst_percent:18,gst_amount:'666.63',grand_total:'4370.13',document_details:{tax_mode:'CGST_SGST'}},payments:[{date:'2026-10-02',voucher_no:'RV-1',total:'1000'}]};
 test('invoice Excel preserves rates, billing periods and allocated payments',async()=>{
  const b=new ExcelJS.Workbook();await b.xlsx.load(Buffer.from(await invoiceExcel(invoice)) as any);
  const rows=b.getWorksheet('Invoice')!.getSheetValues() as any[];

@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {readFile,readdir} from 'node:fs/promises';
+import pg from 'pg';
+if(!process.env.TEST_DATABASE_URL||!['127.0.0.1','localhost'].includes(new URL(process.env.TEST_DATABASE_URL).hostname))throw new Error('A local TEST_DATABASE_URL is required.');
+const admin=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});await admin.connect();
+const name='erp_updates_'+randomUUID().replaceAll('-','');await admin.query(`CREATE DATABASE "${name}"`);const url=new URL(process.env.TEST_DATABASE_URL);url.pathname='/'+name;process.env.DATABASE_URL=url.toString();
+const {pool}=await import('../src/lib/db');
+try{
+ for(const file of (await readdir('db')).filter(f=>/^\d+.*\.sql$/.test(f)).sort())await pool.query(await readFile('db/'+file,'utf8'));
+ const owner={id:randomUUID(),name:'Owner',login:'owner',role:'OWNER' as const,is_active:true};
+ await pool.query("INSERT INTO erp_users(id,name,login,password_hash,role) VALUES($1,'Owner','owner','unused','OWNER')",[owner.id]);
+ await pool.query("INSERT INTO company(id,name,gst_no) VALUES(1,'Test company','24ABCDE1234F1Z5')");
+ const service=await import('../src/lib/service'),{correctChallan}=await import('../src/rental/challan-corrections'),auth=await import('../src/shared/auth-server'),{saveRole}=await import('../src/shared/permissions-server'),{can}=await import('../src/shared/access');
+ const c=await service.saveCustomer({name:'Test customer',locking_days:0,sites:['Yard A','Yard B'],address:'GST registered address'});
+ const a=await service.saveItem({name:'Pipe',material_value:100,rate:1,effective_from:'2026-01-01'}),b=await service.saveItem({name:'Clamp',material_value:50,rate:2,effective_from:'2026-01-01'});
+ const created=await service.saveMovement({customer_id:c.id,site_name:'Yard A',date:'2026-01-01',type:'DISPATCH',reference:'KEEP-001',contact_phone:'9876543210',delivery_site:'Delivery address',note:'Print once',lines:[{item_id:a.id,quantity:10,stock_type:'New Rent'},{item_id:b.id,quantity:5}]});
+ const rows=()=>pool.query('SELECT * FROM movements WHERE challan_id=$1 ORDER BY item_id',[created.challan_id]).then(r=>r.rows);
+ let before=await rows();assert.equal(before.length,2);assert.equal(before[0].contact_phone,'9876543210');assert.equal(before.find(m=>m.item_id===a.id).stock_type,'New Rent');
+ const payload={id:before.find(m=>m.item_id===a.id).id,action:'EDIT',reason:'Test edit',versions:before.map(m=>({id:m.id,revision:m.revision})),date:'2026-01-01',contact_phone:'1234567890',delivery_site:'New delivery site',note:'Edited note',lines:[{...before.find(m=>m.item_id===a.id),quantity:8}]};
+ await correctChallan(owner,payload);let after=await rows();assert.equal(after.length,1);assert.equal(after[0].reference,'KEEP-001');assert.equal(after[0].quantity,8);assert.equal(after[0].contact_phone,'1234567890');
+ await assert.rejects(()=>correctChallan(owner,payload),/changed/);
+ await correctChallan(owner,{...payload,id:after[0].id,versions:after.map(m=>({id:m.id,revision:m.revision})),lines:[{...after[0],quantity:8},{item_id:b.id,quantity:3,rental_rate:2,stock_type:'Rent'}]});after=await rows();assert.equal(after.length,2);assert.ok(after.every(m=>m.reference==='KEEP-001'));
+ const ret=await service.saveMovement({customer_id:c.id,site_name:'Yard A',date:'2026-01-02',type:'RETURN',lines:[{item_id:a.id,quantity:4}]});
+ const deletion={id:after[0].id,action:'DELETE',reason:'Delete whole document',versions:after.map(m=>({id:m.id,revision:m.revision}))};await assert.rejects(()=>correctChallan(owner,deletion),/invalidate/);assert.equal((await rows()).length,2);
+ const returned=(await pool.query('SELECT * FROM movements WHERE challan_id=$1',[ret.challan_id])).rows;
+ await correctChallan(owner,{id:returned[0].id,action:'DELETE',reason:'Remove return',versions:returned.map(m=>({id:m.id,revision:m.revision}))});
+ await correctChallan(owner,deletion);assert.equal((await rows()).length,0);assert.equal((await pool.query('SELECT count(*)::int n FROM dispatch_lots')).rows[0].n,0);
+ const user=await auth.saveUser(owner,{name:'New staff',login:'UniqueStaff',role:'RENTAL_STAFF',is_active:true,password:'initial-password'});let login=await auth.login({login:'uniquestaff',password:'initial-password'});let current=(await auth.sessionUser(login.token))!;assert.equal(can(current,'challans','create'),false);
+ const role=await saveRole(owner,{name:'Challan creator',permissions:{challans:{create:true}}});
+ await auth.saveUser(owner,{id:user.id,name:'New staff',login:'uniquestaff',role:'RENTAL_STAFF',role_id:role.id,is_active:true,password:''});assert.equal(await auth.sessionUser(login.token),null);
+ login=await auth.login({login:'uniquestaff',password:'initial-password'});current=(await auth.sessionUser(login.token))!;assert.equal(can(current,'challans','create'),true);assert.equal(can(current,'challans','view'),false);
+ await assert.rejects(()=>correctChallan(current,deletion),/permission/);
+ await saveRole(owner,{id:role.id,name:'Challan creator',permissions:{invoices:{view:true}}});assert.equal(await auth.sessionUser(login.token),null);
+ await auth.saveUser(owner,{id:user.id,name:'New staff',login:'uniquestaff',role:'RENTAL_STAFF',role_id:role.id,is_active:true,password:'reset-password',permission_overrides:{invoices:{view:false},quotations:{edit:true}}});
+ await assert.rejects(()=>auth.login({login:'uniquestaff',password:'initial-password'}),/Incorrect/);login=await auth.login({login:'uniquestaff',password:'reset-password'});current=(await auth.sessionUser(login.token))!;assert.equal(can(current,'invoices'),false);assert.equal(can(current,'quotations','edit'),true);
+ await auth.saveUser(owner,{id:user.id,name:'New staff',login:'uniquestaff',role:'RENTAL_STAFF',is_active:false});assert.equal(await auth.sessionUser(login.token),null);await assert.rejects(()=>auth.login({login:'uniquestaff',password:'reset-password'}),/Incorrect/);
+ await service.saveMovement({customer_id:c.id,site_name:'Yard B',date:'2026-01-01',type:'DISPATCH',lines:[{item_id:a.id,quantity:2}]});
+ const quote=await service.saveQuotation({customer_id:c.id,date:'2026-01-01',deposit:0,terms:'Initial',lines:[{item_id:a.id,quantity:1,rate:1}]});await service.saveQuotation({id:quote.id,customer_id:c.id,date:'2026-01-01',deposit:0,terms:'Edited',lines:[{item_id:a.id,quantity:2,rate:1}]});assert.equal((await pool.query('SELECT snapshot FROM quotations WHERE id=$1',[quote.id])).rows[0].snapshot.terms,'Edited');
+ const invoice:any=await service.createInvoice({customer_id:c.id,period_start:'2026-01-01',period_end:'2026-01-03',gst_percent:18},true);assert.equal(invoice.tax.tax_mode,'CGST_SGST');
+ const interstate:any=await service.createInvoice({customer_id:c.id,period_start:'2026-01-01',period_end:'2026-01-03',gst_percent:18,document_details:{place_of_supply:'Maharashtra',tax_mode:'CGST_SGST'}},true);assert.equal(interstate.tax.tax_mode,'IGST');
+
+ await (await import('../src/rental/accounting')).saveAccountingSettings(owner,{company_name:'Test company',financial_year_start:'2026-01-01',closed_through:''});
+ const lockedInvoice:any=await service.createInvoice({customer_id:c.id,period_start:'2026-01-01',period_end:'2026-01-03',gst_percent:18});await service.finalizeInvoice(lockedInvoice.id,owner);
+ const lockedMoves=(await pool.query('SELECT * FROM movements WHERE customer_id=$1',[c.id])).rows;await assert.rejects(()=>correctChallan(owner,{id:lockedMoves[0].id,action:'DELETE',reason:'Protected invoice',versions:lockedMoves.map(m=>({id:m.id,revision:m.revision}))}),/finalized invoice/);
+ const legacy=await service.saveCustomer({name:'Legacy ledger customer',locking_days:0});await service.saveMovement({customer_id:legacy.id,date:'2026-01-01',type:'DISPATCH',lines:[{item_id:a.id,quantity:7}]});await service.saveCustomer({id:legacy.id,name:'Legacy ledger customer',locking_days:0,sites:['New site']});await service.saveMovement({customer_id:legacy.id,site_name:'New site',date:'2026-01-02',type:'DISPATCH',lines:[{item_id:a.id,quantity:3}]});
+ const {materialExport}=await import('../src/rental/material-export');const ExcelJS=(await import('exceljs')).default;
+ for(const [site,expected] of [[undefined,10],['New site',3]] as const){const out=await materialExport(new URLSearchParams({customer:legacy.id,start:'2026-01-01',end:'2026-01-31',format:'xlsx',...(site?{site}:{})}));const book=new ExcelJS.Workbook();await book.xlsx.load(Buffer.from(out.bytes) as any);const sheet=book.worksheets[0];const values:any[][]=[];sheet.eachRow(row=>values.push(row.values as any[]));assert.ok(values.some(row=>row.includes('02-01-2026')));assert.ok(values.some(row=>row.includes('Closing Balance')&&row.includes(expected)));if(!site)assert.ok(values.some(row=>row.includes('01-01-2026')));}
+ console.log('ERP integration passed: atomic challan add/remove/delete, stale edits, invalid returns, role changes, overrides, password reset, deactivation, quotation editing and GST splits.');
+}finally{await pool.end();await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);await admin.end();}

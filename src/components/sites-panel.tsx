@@ -1,0 +1,7 @@
+'use client';
+import {useState} from 'react';
+import {can,type User} from '@/shared/access';
+export default function SitesPanel({data,user,onSave}:{data:any;user?:User;onSave:(d:any)=>Promise<unknown>}){
+ const [customer,setCustomer]=useState(''),[name,setName]=useState('');const profile=data.customers.find((c:any)=>c.id===customer);
+ return <section className="panel" style={{padding:24}}><label className="field">Customer<select value={customer} onChange={e=>setCustomer(e.target.value)}><option value="">Select customer</option>{data.customers.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>{profile&&<>{can(user,'sites')&&(profile.sites||[]).map((site:string)=><p key={site}>{site} {can(user,'sites','edit')&&<button className="text-button" onClick={()=>{const value=window.prompt('Rename site',site);if(value)void onSave({customer_id:customer,action:'edit',name:site,new_name:value});}}>Rename</button>}{can(user,'sites','delete')&&<button className="text-button" onClick={()=>{if(window.confirm('Delete site '+site+'?'))void onSave({customer_id:customer,action:'delete',name:site});}}>Delete</button>}</p>)}{can(user,'sites','create')&&<form onSubmit={async e=>{e.preventDefault();await onSave({customer_id:customer,action:'create',name});setName('');}}><label className="field">New site<input required maxLength={200} value={name} onChange={e=>setName(e.target.value)}/></label><button className="primary">Add site</button></form>}</>}</section>;
+}

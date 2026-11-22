@@ -1,5 +1,5 @@
 import {pool,transaction} from '@/lib/db';
-import {AccessError,type User} from '@/shared/access';
+import {AccessError,demand,type User} from '@/shared/access';
 import {defaultFormat,validateFormat,type LedgerModule} from './ledger-formats';
 import {challanFormatSchema,defaultChallanFormat} from './challan-format';
 export async function loadFormats(){
@@ -7,7 +7,7 @@ export async function loadFormats(){
  return {material:rows.find(r=>r.module==='material')?.settings||defaultFormat('material'),party:rows.find(r=>r.module==='party')?.settings||defaultFormat('party'),challan:rows.find(r=>r.module==='challan')?.settings||defaultChallanFormat()};
 }
 export async function saveFormat(user:User,input:any){
- if(user.role!=='OWNER')throw new AccessError('Only the owner can change export formats.',403);
+ demand(user,'settings','edit');
  if(!['material','party','challan'].includes(input?.module))throw new AccessError('Choose an export format.');
  const module=input.module as LedgerModule|'challan';
  let settings;try{settings=module==='challan'?challanFormatSchema.parse(input.settings):validateFormat(module,input.settings);}catch(e){throw new AccessError((e as Error).message);}

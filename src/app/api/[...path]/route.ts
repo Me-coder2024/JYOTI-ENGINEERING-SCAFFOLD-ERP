@@ -1,5 +1,6 @@
+import {filterState,authorizeRequest} from '@/shared/request-access';
 import {withInvoiceCompany} from '@/rental/invoice-company';
-import {requireApi} from '@/shared/guards';
+import {requireApi,errorResponse} from '@/shared/guards';
 import {paymentRowsSql,paymentSummary} from '@/rental/payments';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
@@ -16,9 +17,10 @@ function timedJson(value:unknown,operation:string,start:number){
 const attempts=new Map<string,{count:number,until:number}>();
 export async function GET(req:NextRequest,{params}:{params:Promise<{path:string[]}>}) {
  try {
-  if(!await authenticated()) return NextResponse.json({error:'Please sign in.'},{status:401});
+  const user=await requireApi(req,'rental');
   const path=(await params).path;
-  if(path[0]==='state'){const start=performance.now();return timedJson(await service.state(),'state',start);}
+  authorizeRequest(user,req.nextUrl.pathname,'GET');
+  if(path[0]==='state'){const start=performance.now();return timedJson(filterState(user,await service.state()),'state',start);}
   if(path[0]==='invoices' && path[1]) {
    let invoice=(await pool.query('SELECT * FROM invoices WHERE id=$1',[path[1]])).rows[0];
    if(!invoice) return NextResponse.json({error:'Invoice not found.'},{status:404});
@@ -39,7 +41,7 @@ export async function GET(req:NextRequest,{params}:{params:Promise<{path:string[
    return new Response(new Uint8Array(result),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':`attachment; filename="jyoti-${path[1]}.xlsx"`}});
   }
   return NextResponse.json({error:'Not found.'},{status:404});
- } catch(error) {console.error(error);return NextResponse.json({error:error instanceof Error?error.message:'Unable to load data.'},{status:400});}
+ } catch(error) {return errorResponse(error);}
 }
 export async function POST(req:NextRequest,{params}:{params:Promise<{path:string[]}>}) {
  try {
@@ -61,11 +63,13 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{path:string
    (await cookies()).set('jyoti_session',createSession(),{httpOnly:true,sameSite:'strict',secure:req.nextUrl.protocol==='https:',maxAge:43200,path:'/'});
    return NextResponse.json({ok:true});
   }
-  if(!await authenticated()) return NextResponse.json({error:'Please sign in.'},{status:401});
+  const user=await requireApi(req,'rental');
   const start=performance.now();
   const data=await req.json();
+  authorizeRequest(user,req.nextUrl.pathname,'POST',data);
   let result;
-  if(path[0]==='customers') result=await service.saveCustomer(data);
+  if(path[0]==='sites') result=await service.saveSite(user,data);
+  else if(path[0]==='customers') result=await service.saveCustomer(data);
   else if(path[0]==='items') result=await service.saveItem(data);
   else if(path[0]==='movements') result=await service.saveMovement(data,path[1]==='preview');
   else if(path[0]==='invoices'&&path[2]==='finalize') result=await service.finalizeInvoice(path[1],await requireApi(req,'rental'));
@@ -77,9 +81,9 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{path:string
   return timedJson(result,path.slice(0,1).join('/')+(path[1]==='preview'?'/preview':''),start);
  } catch(error) {
   console.error(error);
-  const e=error as {code?:string;message?:string;issues?:{message:string;path:string[]}[]};
+  const e=error as {status?:number;code?:string;message?:string;issues?:{message:string;path:string[]}[]};
   const message=e.code==='23505'?(pathError(error)==='customers_unique_gstin'?'This GST number already belongs to another customer. Open the existing profile.':'This record or effective rate date already exists.'):e.issues?e.issues.map(i=>`${i.path.join('.')}: ${i.message}`).join('; '):e.message||'Unable to save. Try again.';
-  return NextResponse.json({error:message},{status:400});
+  return NextResponse.json({error:message},{status:e.status||400});
  }
 }
 

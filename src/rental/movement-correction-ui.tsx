@@ -1,20 +1,18 @@
 'use client';
 import {useState} from 'react';
+import {challanKey} from './challan-groups';
 type Row=Record<string,any>;
 export default function MovementCorrection({record,data,busy,onSave}:{record:Row;data:Row;busy:boolean;onSave:(value:Row)=>Promise<boolean>}){
- const [action,setAction]=useState('EDIT'),[error,setError]=useState(''),[confirmed,setConfirmed]=useState(false);
- return <form onSubmit={async e=>{e.preventDefault();setError('');const f=Object.fromEntries(new FormData(e.currentTarget));if(action==='DELETE'&&!confirmed){setError('Confirm deletion below before continuing.');return;}const ok=await onSave(action==='DELETE'?{id:record.id,revision:record.revision,action,reason:f.reason}:{...f,id:record.id,revision:record.revision,action,quantity:Number(f.quantity),damaged_quantity:Number(f.damaged_quantity||0),...(record.type==='DISPATCH'?{rental_rate:f.rental_rate===''?null:Number(f.rental_rate)}:{})});if(!ok)setError('Correction was not saved. Review the error above; your entered details remain here.');}}>
- <p><strong>{data.customers.find((c:Row)=>c.id===record.customer_id)?.name}</strong><br/>{data.items.find((i:Row)=>i.id===record.item_id)?.name} - {record.type}</p>
- <p className="panel-note">This corrects one material line. The original record and reason are retained in history. Later returns are recalculated; finalized invoices cannot be changed. Regenerate any affected draft invoices.</p>
- <label className="field"><span>Action</span><select value={action} onChange={e=>{setAction(e.target.value);setConfirmed(false);}}><option value="EDIT">Edit entry</option><option value="DELETE">Delete entry</option></select></label>
- <fieldset disabled={action==='DELETE'} style={{display:action==='DELETE'?'none':undefined,border:0,padding:0,margin:0}} className="form-grid">
- <label className="field"><span>Date</span><input name="date" type="date" required max={data.today} defaultValue={record.date}/></label>
- <label className="field"><span>Quantity</span><input name="quantity" type="number" required min="1" step="1" defaultValue={record.quantity}/></label>
- {record.type==='RETURN'?<label className="field"><span>Damaged quantity</span><input name="damaged_quantity" type="number" required min="0" step="1" defaultValue={record.damaged_quantity}/></label>:<label className="field"><span>Agreed daily rate</span><input name="rental_rate" type="number" min="0" step="0.0001" defaultValue={record.rental_rate??''}/><small>Blank preserves historical rate-card billing.</small></label>}
- <label className="field"><span>Reference</span><input name="reference" maxLength={80} defaultValue={record.reference}/></label>
- <label className="field"><span>Vehicle number (optional)</span><input name="vehicle_no" maxLength={40} defaultValue={record.vehicle_no||''}/></label><label className="field"><span>Notes</span><textarea name="note" defaultValue={record.note}/></label></fieldset>
- <label className="field"><span>Reason for correction</span><textarea name="reason" required minLength={3} maxLength={2000}/></label>
- {action==='DELETE'&&<label className="m-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>I confirm deleting this material line from active stock and billing. Its audit history will be retained.</label>}
- {error&&<p className="alert error">{error}</p>}<button className="primary" disabled={busy}>{busy?'Saving...':action==='DELETE'?'Delete with audit history':'Save correction'}</button>
- </form>;
+ const original=data.movements.filter((m:Row)=>challanKey(m)===challanKey(record));
+ const [lines,setLines]=useState<Row[]>(original.map((m:Row)=>({...m}))),[error,setError]=useState('');
+ function update(i:number,value:Row){setLines(rows=>rows.map((r,n)=>n===i?{...r,...value}:r));}
+ return <form onSubmit={async e=>{e.preventDefault();setError('');const values=Object.fromEntries(new FormData(e.currentTarget));if(!await onSave({...values,id:record.id,versions:original.map((r:Row)=>({id:r.id,revision:r.revision})),action:'EDIT',lines:lines.map(l=>({...l,rental_rate:l.rental_rate===''?null:l.rental_rate}))}))setError('Changes were not saved. Review the error and retry.');}}>
+ <h3>Challan {record.reference||'Legacy entry'}</h3><p>The challan number, customer and accounting site are retained. Finalized invoices remain protected.</p>
+ <label className="field">Date<input name="date" type="date" required max={data.today} defaultValue={record.date}/></label>
+ <label className="field">Contact phone number<input name="contact_phone" type="tel" maxLength={40} defaultValue={record.contact_phone||''}/></label>
+ <label className="field">Delivery Site<textarea name="delivery_site" maxLength={2000} defaultValue={record.delivery_site||''}/></label>
+ <label className="field">Vehicle number<input name="vehicle_no" maxLength={40} defaultValue={record.vehicle_no||''}/></label>
+ {lines.map((l,i)=><div className="form-section" key={l.id||i}><label className="field">Material<select required disabled={!!l.id} value={l.item_id} onChange={e=>update(i,{item_id:e.target.value})}><option value="">Select material</option>{data.items.map((item:Row)=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="field">Quantity<input type="number" required min={1} step={1} value={l.quantity} onChange={e=>update(i,{quantity:Number(e.target.value)})}/></label><label className="field">Stock type<select value={l.stock_type||'Rent'} onChange={e=>update(i,{stock_type:e.target.value})}><option>Rent</option><option>New Rent</option></select></label>{record.type==='DISPATCH'?<label className="field">Daily rental rate<input type="number" min={0} step="0.0001" required={!l.id} value={l.rental_rate??''} onChange={e=>update(i,{rental_rate:e.target.value})}/></label>:<label className="field">Damaged quantity<input type="number" min={0} max={l.quantity} value={l.damaged_quantity||0} onChange={e=>update(i,{damaged_quantity:Number(e.target.value)})}/></label>}<button type="button" className="secondary" disabled={lines.length===1} onClick={()=>setLines(v=>v.filter((_,n)=>n!==i))}>Remove item</button></div>)}
+ <button type="button" className="secondary" onClick={()=>setLines(v=>[...v,{item_id:'',quantity:1,damaged_quantity:0,rental_rate:'',stock_type:'Rent'}])}>Add item</button>
+ <label className="field">Notes<textarea name="note" defaultValue={record.note}/></label><label className="field">Reason for correction<textarea required minLength={3} maxLength={2000} name="reason"/></label>{error&&<p className="alert error">{error}</p>}<button className="primary" disabled={busy}>Save challan</button></form>;
 }

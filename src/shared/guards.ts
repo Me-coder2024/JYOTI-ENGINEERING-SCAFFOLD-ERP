@@ -2,10 +2,10 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { NextRequest } from 'next/server';
 import { sessionUser } from './auth-server';
-import { allowed, AccessError } from './access';
+import { allowed, AccessError, canManageUsers } from './access';
 import {randomUUID} from 'node:crypto';
-export async function requirePage(module:'rental'|'manufacturing'|'owner') {const user=await sessionUser((await cookies()).get('erp_session')?.value);if(!user)redirect('/login');if(!allowed(user.role,module))throw new AccessError('Access denied.',403);return user;}
-export async function requireApi(req:NextRequest,module:'rental'|'manufacturing'|'owner') {const user=await sessionUser(req.cookies.get('erp_session')?.value);if(!user)throw new AccessError('Please sign in.',401);if(!allowed(user.role,module))throw new AccessError('Access denied for this module.',403);return user;}
+export async function requirePage(module:'rental'|'manufacturing'|'owner') {const user=await sessionUser((await cookies()).get('erp_session')?.value);if(!user)redirect('/login');if(!(module==='owner'?canManageUsers(user):allowed(user.role,module)))throw new AccessError('Access denied.',403);return user;}
+export async function requireApi(req:NextRequest,module:'rental'|'manufacturing'|'owner') {const user=await sessionUser(req.cookies.get('erp_session')?.value);if(!user)throw new AccessError('Please sign in.',401);if(!(module==='owner'?canManageUsers(user):allowed(user.role,module)))throw new AccessError('Access denied for this module.',403);return user;}
 export function sameOrigin(req:NextRequest) {const origin=req.headers.get('origin');if(origin&&(!/^https?:\/\//.test(origin)||new URL(origin).host!==req.headers.get('host')))throw new AccessError('Untrusted request origin.',403);}
 export function errorResponse(error:unknown) {
  const e=error as {message?:string;status?:number;code?:string;issues?:{message:string}[]};

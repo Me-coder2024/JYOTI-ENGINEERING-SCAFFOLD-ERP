@@ -16,12 +16,12 @@ export async function materialExport(params:URLSearchParams){
   for(const g of groups){
    rows.push({values:{Date:'Opening Balance','Item Name':g.name,'Pend.Qty':g.opening},strong:true});
    let running=g.opening;
-   for(const m of g.rows){running+=m.type==='DISPATCH'?Number(m.quantity):-Number(m.quantity);rows.push({values:{Date:m.date,Vhty:m.type==='DISPATCH'?'Outw':'Inwr',Reference:m.reference||m.id.slice(0,8),'Item Name':g.name,'Issu Qty':m.type==='DISPATCH'?Number(m.quantity):'','Rcpt Qty':m.type==='RETURN'?Number(m.quantity):'','Pend.Qty':running}});}
+   for(const m of g.rows){running+=m.type==='DISPATCH'?Number(m.quantity):-Number(m.quantity);rows.push({values:{Date:m.date.slice(0,10).split('-').reverse().join('-'),Vhty:m.type==='DISPATCH'?'Outw':'Inwr',Reference:m.reference||m.id.slice(0,8),'Item Name':g.name,'Issu Qty':m.type==='DISPATCH'?Number(m.quantity):'','Rcpt Qty':m.type==='RETURN'?Number(m.quantity):'','Pend.Qty':running}});}
    rows.push({values:{'Item Name':'Sub Total','Issu Qty':g.issued,'Rcpt Qty':g.received,'Pend.Qty':g.pending},strong:true});
   }
   const total=groups.reduce((t,g)=>({issued:t.issued+g.issued,received:t.received+g.received,pending:t.pending+g.pending}),{issued:0,received:0,pending:0});
   rows.push({values:{'Item Name':'Closing Balance','Issu Qty':total.issued,'Rcpt Qty':total.received,'Pend.Qty':total.pending},strong:true});
-  return {party:c.name+(d.site===undefined?' — All sites':' — '+(d.site||'Legacy / Unassigned')),address:[c.address,c.mobile].filter(Boolean).join(' | '),start:d.start,end:d.end,rows};
+  return {party:c.name+(d.site===undefined?' — All sites':' — '+(d.site||'Legacy / Unassigned')),address:[c.address,c.mobile].filter(Boolean).join(' | '),start:d.start.split('-').reverse().join('-'),end:d.end.split('-').reverse().join('-'),rows};
  },true);
  return renderLedger(report,(await loadFormats()).material,d.format);
 }

@@ -1,3 +1,4 @@
+import {saveRole} from '@/shared/permissions-server';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { login, logout, saveUser } from '@/shared/auth-server';
@@ -18,8 +19,9 @@ export async function POST(req:NextRequest,{params}:{params:Promise<{action:stri
    if(result.user.role!=='MANUFACTURING_STAFF')jar.set('jyoti_session',createSession(),options);else jar.delete('jyoti_session');
    return NextResponse.json({redirect:homeFor(result.user.role)});
   }
+  if(path==='roles')return NextResponse.json(await saveRole(await requireApi(req,'owner'),await req.json()));
   if(path==='users')return NextResponse.json(await saveUser(await requireApi(req,'owner'),await req.json()));
   return NextResponse.json({error:'Not found.'},{status:404});
  }catch(e){return errorResponse(e);}
 }
-export async function GET(req:NextRequest) {try{await requireApi(req,'owner');return NextResponse.json((await pool.query('SELECT id,name,login,role,is_active,created_at FROM erp_users ORDER BY created_at')).rows);}catch(e){return errorResponse(e);}}
+export async function GET(req:NextRequest) {try{await requireApi(req,'owner');if(req.nextUrl.pathname.endsWith('/roles'))return NextResponse.json((await pool.query('SELECT * FROM erp_roles ORDER BY name')).rows);return NextResponse.json((await pool.query('SELECT id,name,login,role,is_active,role_id,permission_overrides,manage_users,created_at FROM erp_users ORDER BY created_at')).rows);}catch(e){return errorResponse(e);}}
