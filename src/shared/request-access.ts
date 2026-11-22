@@ -9,7 +9,7 @@ export function authorizeRequest(user:User,path:string,method:string,body:Record
  let module:Module|undefined,action:Action=read?'view':body.id?'edit':'create';
  if(p[1]==='sites'){module='sites';action=body.action;}else if(p[1]==='customers'){
   module='customers';
-  if(body.sites!==undefined){demand(user,'sites',body.id?'edit':'create');}
+  if(body.sites!==undefined && !can(user,'customers',body.id?'edit':'create')){demand(user,'sites',body.id?'edit':'create');}
  }else if(p[1]==='items')module='inventory';
  else if(p[1]==='movements')module='challans';
  else if(p[1]==='invoices'){module='invoices';action=read?'view':p[2]&&p[2]!=='preview'?'edit':'create';}
