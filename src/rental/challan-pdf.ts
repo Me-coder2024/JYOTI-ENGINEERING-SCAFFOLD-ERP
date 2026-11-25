@@ -37,10 +37,10 @@ export async function challanPdf(rows:Row[],company:Row,settings:ChallanFormat=d
   text(details,110,784,461,8,false,true);
   y=Math.min(716,784-wrap(details,461,8).length*11-10);
   const titleHeight=Math.max(23,wrap(title,w-12,12,true).length*15+8);box(x,y,w,titleHeight);text(title,x+6,y-4,w-12,12,true,true);y-=titleHeight;
-  const to='To,\n'+first.customer,meta='Challan Date: '+date(first.date)+'\nChallan No.: '+(first.reference||'Legacy entry')+'\nVehicle No.: '+(first.vehicle_no||'-');
+  const to='To,\n'+first.customer+'\n'+(first.address||''),meta='Challan Date: '+date(first.date)+'\nChallan No.: '+(first.reference||'Legacy entry')+'\nVehicle No.: '+(first.vehicle_no||'-');
   const h=Math.max(66,wrap(to,263).length*lineHeight+12,wrap(meta,264).length*lineHeight+12);
   box(x,y,274,h);box(298,y,273,h);text(to,x+6,y-6,262);text(meta,304,y-6,261);y-=h;
-  const address='To Site (GST address):\n'+(first.address||'-')+'\nDelivery Site: '+(first.delivery_site||first.site_name||'-'),contact='Contact: '+(first.contact_person||'-')+'\nPhone / Mobile: '+(first.contact_phone||first.mobile||'-');
+  const address='Site address:\n'+(first.delivery_site?.trim()||''),contact='Contact: '+(first.contact_person||'-')+'\nPhone / Mobile: '+(first.contact_phone||first.mobile||'-');
   const ah=Math.max(62,wrap(address,262).length*lineHeight+12,wrap(contact,261).length*lineHeight+12);
   box(x,y,274,ah);box(298,y,273,ah);text(address,x+6,y-6,262);text(contact,304,y-6,261);y-=ah;
   [ [x,35,'No.'],[x+35,432,'Item Name & Description'],[x+467,80,'Qty.'] ].forEach(([xx,ww,label])=>{box(Number(xx),y,Number(ww),23);text(label,Number(xx),y-5,Number(ww),9,true,true);});y-=23;
